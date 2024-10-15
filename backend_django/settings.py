@@ -197,6 +197,14 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'backend_django/static'),  # Use this if you put it in 'backend_django/static'
+    # Or use 'static' if you place it at the project root level
+]
+
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')  # This is where 'collectstatic' will put your files for production
+
+
 # Optional but recommended for compression and caching
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
