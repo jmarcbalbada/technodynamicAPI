@@ -70,12 +70,12 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
-    "corsheaders.middleware.CorsMiddleware",
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -147,13 +147,16 @@ AUTH_PASSWORD_VALIDATORS = [
 # CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
-    "https://technodynamic.vercel.app",  # Add this
-    # Add other trusted origins as needed
+    "https://technodynamic.vercel.app",
+    "https://technodynamicv2-73437bf08784.herokuapp.com",
+    "http://localhost:3000",
+    "http://localhost:5173",
 ]
+
 
 CSRF_TRUSTED_ORIGINS = [
     "https://technodynamic.vercel.app",
-    # Add other domains if necessary
+    "https://technodynamicv2-73437bf08784.herokuapp.com"
 ]
 
 # CORS_ALLOW_HEADERS = [
