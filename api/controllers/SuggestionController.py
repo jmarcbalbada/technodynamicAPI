@@ -133,60 +133,44 @@ class SuggestionController(ModelViewSet):
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def createContent(self, request):
-        
         lesson_id = request.data.get('lesson_id')
         notification_id = request.data.get('notification_id')
         
         if not lesson_id or not notification_id:
-            return Response({"error": "lesson_id or notification_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+            response = Response({"error": "lesson_id or notification_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+            response["Access-Control-Allow-Origin"] = "https://technodynamic.vercel.app"  # Add the CORS header
+            return response
         
-        # guard lesson and notification check if exists
+        # Guard lesson and notification check if exists
         existing_lesson = Lesson.objects.filter(id=lesson_id).first()
         existing_notification = Notification.objects.filter(notif_id=notification_id).first()
 
         if not existing_lesson or not existing_notification:
-            return Response({"error": "Lesson or Notification does not exist."}, status=status.HTTP_400_BAD_REQUEST)
+            response = Response({"error": "Lesson or Notification does not exist."}, status=status.HTTP_400_BAD_REQUEST)
+            response["Access-Control-Allow-Origin"] = "https://technodynamic.vercel.app"  # Add the CORS header
+            return response
 
-        # # Check if a suggestion already exists for the lesson
-        # existing_suggestion, IsCreated = Suggestion.objects.get_or_create(lesson_id=lesson_id)
-
+        # Check if suggestions exist for the lesson
         suggestions = Suggestion.objects.filter(lesson_id=lesson_id)
-
         if suggestions.exists():
-            
-            # If only one suggestion exists, use that suggestion
             existing_suggestion = suggestions.first()
             IsCreated = False
         else:
-            # Create a new suggestion
             existing_suggestion = Suggestion.objects.create(lesson_id=lesson_id)
             IsCreated = True
 
-        # Check if existing_suggestion has insight value early return
-        # if existing_suggestion and existing_suggestion.content:
-        #     return Response(SuggestionSerializer(existing_suggestion).data, status=status.HTTP_200_OK)
-        
         # Fetch lesson contents
         lesson_contents = LessonContent.objects.filter(lesson_id=lesson_id)
-        
-        # Serialize and clean lesson content data
         lesson_content_serializer = LessonContentSerializer(lesson_contents, many=True)
         lesson_content_data = lesson_content_serializer.data
-
-        # Ensure the content field exists in lesson content data
         lesson_content_text = "\n".join([content['contents'] for content in lesson_content_data if 'contents' in content])
-        # print("con    tent: ", lesson_content_text)
 
-        # Get grouped questions related to the given notification_id
+        # Get grouped questions and FAQs
         grouped_questions = GroupedQuestions.objects.filter(notification_id=notification_id, lesson_id=lesson_id)
-        
-        # Get FAQs related to these grouped questions
         faqs = Faq.objects.filter(grouped_questions__in=grouped_questions).select_related('grouped_questions__notification')
-
-        # Prepare the response data with only questions
         faq_questions = [faq.question for faq in faqs if faq.grouped_questions and faq.grouped_questions.notification]
 
-        input_text = prompt_create_content_abs(faq_questions,lesson_content_text)
+        input_text = prompt_create_content_abs(faq_questions, lesson_content_text)
         
         try:
             # Call OpenAI API to get the suggestion
@@ -197,52 +181,148 @@ class SuggestionController(ModelViewSet):
                     {"role": "system", "content": SUGGESTION_SYSTEM_CONTENT},
                     {"role": "user", "content": input_text}
                 ],
-                # max_tokens=6000, # enough tokens for now
-                max_tokens=4000, # enough tokens for now
-                temperature=0.5, # more creative
+                max_tokens=4000,
+                temperature=0.5,
             )
             ai_response = response['choices'][0]['message']['content'].strip()
-            # Preprocess the response to ensure it uses <br> and removes unwanted characters
-            # Remove all newlines and replace with <br>
-            ai_response = ai_response.replace('\n', '')
-            # Remove any instances of ** from the response
-            ai_response = ai_response.replace('**', '')
+            ai_response = ai_response.replace('\n', '').replace('**', '')  # Clean newlines and **
 
             # Clean all marks
             propose_ai_content = self.cleanMarkAiContent(ai_response)
-            # print("PROPOSE AI CONTENT = " + propose_ai_content)
-
-            # Updating content to cleaned HTML MARKUP
             existing_suggestion.content = propose_ai_content
-            # print("existing_suggestion.content",existing_suggestion.content)
 
-            # existing_suggestion.content = None
             if not existing_suggestion.old_content:
                 existing_suggestion.old_content = lesson_content_text
 
-            # print("old content CreateContent",existing_suggestion.old_content)
-
             existing_suggestion.save()
 
-             # Add the proposed AI response to the response data1
             response_data = {
                 'suggestion': SuggestionSerializer(existing_suggestion).data,
                 'ai_response': ai_response
             }
 
-            # Return the response with the created or updated status
-            if IsCreated:
-                return Response(response_data, status=status.HTTP_201_CREATED)
-
-            return Response(response_data, status=status.HTTP_200_OK)
-
-            # if IsCreated:
-            #     return Response(SuggestionSerializer(existing_suggestion).data, status=status.HTTP_201_CREATED)
-            
-            # return Response(SuggestionSerializer(existing_suggestion).data, status=status.HTTP_200_OK)
+            response = Response(response_data, status=status.HTTP_201_CREATED if IsCreated else status.HTTP_200_OK)
+            response["Access-Control-Allow-Origin"] = "https://technodynamic.vercel.app"  # Add CORS header
+            return response
 
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            response = Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            response["Access-Control-Allow-Origin"] = "https://technodynamic.vercel.app"  # Add CORS header
+            return response
+
+
+    # # 2nd
+    # def createContent(self, request):
+        
+    #     lesson_id = request.data.get('lesson_id')
+    #     notification_id = request.data.get('notification_id')
+        
+    #     if not lesson_id or not notification_id:
+    #         return Response({"error": "lesson_id or notification_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+        
+    #     # guard lesson and notification check if exists
+    #     existing_lesson = Lesson.objects.filter(id=lesson_id).first()
+    #     existing_notification = Notification.objects.filter(notif_id=notification_id).first()
+
+    #     if not existing_lesson or not existing_notification:
+    #         return Response({"error": "Lesson or Notification does not exist."}, status=status.HTTP_400_BAD_REQUEST)
+
+    #     # # Check if a suggestion already exists for the lesson
+    #     # existing_suggestion, IsCreated = Suggestion.objects.get_or_create(lesson_id=lesson_id)
+
+    #     suggestions = Suggestion.objects.filter(lesson_id=lesson_id)
+
+    #     if suggestions.exists():
+            
+    #         # If only one suggestion exists, use that suggestion
+    #         existing_suggestion = suggestions.first()
+    #         IsCreated = False
+    #     else:
+    #         # Create a new suggestion
+    #         existing_suggestion = Suggestion.objects.create(lesson_id=lesson_id)
+    #         IsCreated = True
+
+    #     # Check if existing_suggestion has insight value early return
+    #     # if existing_suggestion and existing_suggestion.content:
+    #     #     return Response(SuggestionSerializer(existing_suggestion).data, status=status.HTTP_200_OK)
+        
+    #     # Fetch lesson contents
+    #     lesson_contents = LessonContent.objects.filter(lesson_id=lesson_id)
+        
+    #     # Serialize and clean lesson content data
+    #     lesson_content_serializer = LessonContentSerializer(lesson_contents, many=True)
+    #     lesson_content_data = lesson_content_serializer.data
+
+    #     # Ensure the content field exists in lesson content data
+    #     lesson_content_text = "\n".join([content['contents'] for content in lesson_content_data if 'contents' in content])
+    #     # print("con    tent: ", lesson_content_text)
+
+    #     # Get grouped questions related to the given notification_id
+    #     grouped_questions = GroupedQuestions.objects.filter(notification_id=notification_id, lesson_id=lesson_id)
+        
+    #     # Get FAQs related to these grouped questions
+    #     faqs = Faq.objects.filter(grouped_questions__in=grouped_questions).select_related('grouped_questions__notification')
+
+    #     # Prepare the response data with only questions
+    #     faq_questions = [faq.question for faq in faqs if faq.grouped_questions and faq.grouped_questions.notification]
+
+    #     input_text = prompt_create_content_abs(faq_questions,lesson_content_text)
+        
+    #     try:
+    #         # Call OpenAI API to get the suggestion
+    #         openai.api_key = os.environ.get("OPENAI_API_KEY")
+    #         response = openai.ChatCompletion.create(
+    #             model="gpt-4o-mini",
+    #             messages=[
+    #                 {"role": "system", "content": SUGGESTION_SYSTEM_CONTENT},
+    #                 {"role": "user", "content": input_text}
+    #             ],
+    #             # max_tokens=6000, # enough tokens for now
+    #             max_tokens=4000, # enough tokens for now
+    #             temperature=0.5, # more creative
+    #         )
+    #         ai_response = response['choices'][0]['message']['content'].strip()
+    #         # Preprocess the response to ensure it uses <br> and removes unwanted characters
+    #         # Remove all newlines and replace with <br>
+    #         ai_response = ai_response.replace('\n', '')
+    #         # Remove any instances of ** from the response
+    #         ai_response = ai_response.replace('**', '')
+
+    #         # Clean all marks
+    #         propose_ai_content = self.cleanMarkAiContent(ai_response)
+    #         # print("PROPOSE AI CONTENT = " + propose_ai_content)
+
+    #         # Updating content to cleaned HTML MARKUP
+    #         existing_suggestion.content = propose_ai_content
+    #         # print("existing_suggestion.content",existing_suggestion.content)
+
+    #         # existing_suggestion.content = None
+    #         if not existing_suggestion.old_content:
+    #             existing_suggestion.old_content = lesson_content_text
+
+    #         # print("old content CreateContent",existing_suggestion.old_content)
+
+    #         existing_suggestion.save()
+
+    #          # Add the proposed AI response to the response data1
+    #         response_data = {
+    #             'suggestion': SuggestionSerializer(existing_suggestion).data,
+    #             'ai_response': ai_response
+    #         }
+
+    #         # Return the response with the created or updated status
+    #         if IsCreated:
+    #             return Response(response_data, status=status.HTTP_201_CREATED)
+
+    #         return Response(response_data, status=status.HTTP_200_OK)
+
+    #         # if IsCreated:
+    #         #     return Response(SuggestionSerializer(existing_suggestion).data, status=status.HTTP_201_CREATED)
+            
+    #         # return Response(SuggestionSerializer(existing_suggestion).data, status=status.HTTP_200_OK)
+
+    #     except Exception as e:
+    #         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def updateContent(self, request):
         lesson_id = request.data.get('lesson_id')
