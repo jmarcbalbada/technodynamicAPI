@@ -233,9 +233,15 @@ class SuggestionController(ModelViewSet):
 
             # Return the response with the created or updated status
             if IsCreated:
-                return Response(response_data, status=status.HTTP_201_CREATED)
+                # return Response(response_data, status=status.HTTP_201_CREATED)
+                response = Response(response_data, status=status.HTTP_201_CREATED)
+                response["Access-Control-Allow-Origin"] = "*"
+                return response
 
-            return Response(response_data, status=status.HTTP_200_OK)
+            # return Response(response_data, status=status.HTTP_200_OK)
+            response = Response(response_data, status=status.HTTP_201_CREATED)
+            response["Access-Control-Allow-Origin"] = "*"
+            return response
 
             # if IsCreated:
             #     return Response(SuggestionSerializer(existing_suggestion).data, status=status.HTTP_201_CREATED)
@@ -243,7 +249,10 @@ class SuggestionController(ModelViewSet):
             # return Response(SuggestionSerializer(existing_suggestion).data, status=status.HTTP_200_OK)
 
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            # return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            response = Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            response["Access-Control-Allow-Origin"] = "*"
+            return response
 
     def updateContent(self, request):
         lesson_id = request.data.get('lesson_id')
