@@ -143,15 +143,15 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = True
 # CORS_ALLOW_CREDENTIALS = True
 
-CORS_ALLOWED_ORIGINS = [
-    "https://technodynamic.vercel.app",
-    "https://technodynamicv2-73437bf08784.herokuapp.com",
-    "http://localhost:3000",
-    "http://localhost:5173",
-]
+# CORS_ALLOWED_ORIGINS = [
+#     "https://technodynamic.vercel.app",
+#     "https://technodynamicv2-73437bf08784.herokuapp.com",
+#     "http://localhost:3000",
+#     "http://localhost:5173",
+# ]
 
 
 CSRF_TRUSTED_ORIGINS = [
