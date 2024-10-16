@@ -143,28 +143,28 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
-CORS_ALLOW_HEADERS = [
-    'authorization',
-    'content-type',
-    'x-csrftoken',
-]
+# CORS_ALLOW_HEADERS = [
+#     'authorization',
+#     'content-type',
+#     'x-csrftoken',
+# ]
 
 
 # Whitelist for react port
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://localhost:5173",
-    "https://techno-dynamic-learning.vercel.app",
-    "http://localhost:8000",
-    "http://192.168.1.5:5173",
-    "https://143.44.165.11:5173",
-    "https://13f2-143-44-165-11.ngrok-free.app",
-    "https://technodynamic.vercel.app",
-    "https://143.44.165.11:5173"
-]
+# CORS_ALLOWED_ORIGINS = [
+#     "http://localhost:3000",
+#     "http://localhost:5173",
+#     "https://techno-dynamic-learning.vercel.app",
+#     "http://localhost:8000",
+#     "http://192.168.1.5:5173",
+#     "https://143.44.165.11:5173",
+#     "https://13f2-143-44-165-11.ngrok-free.app",
+#     "https://technodynamic.vercel.app",
+#     "https://143.44.165.11:5173"
+# ]
 
 # CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='http://localhost:3000,http://localhost:5173').split(',')
 CSRF_TRUSTED_ORIGINS = [
