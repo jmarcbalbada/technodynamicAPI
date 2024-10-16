@@ -159,11 +159,11 @@ CSRF_TRUSTED_ORIGINS = [
     "https://technodynamicv2-73437bf08784.herokuapp.com"
 ]
 
-# CORS_ALLOW_HEADERS = [
-#     'authorization',
-#     'content-type',
-#     'x-csrftoken',
-# ]
+CORS_ALLOW_HEADERS = [
+    'authorization',
+    'content-type',
+    'x-csrftoken',
+]
 
 
 # Whitelist for react port
