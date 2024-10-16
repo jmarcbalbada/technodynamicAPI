@@ -16,7 +16,6 @@ from langchain.chains import ConversationChain
 from langchain.memory import ConversationSummaryBufferMemory
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 from api.model.Faq import Faq
-from api.model.Suggestion import Suggestion
 from api.model.Lesson import Lesson
 from api.model.LessonContent import LessonContent
 from api.model.Query import Query
@@ -31,6 +30,8 @@ import os
 class SuggestionController(ModelViewSet):
     queryset = Suggestion.objects.all()
     serializer_class = SuggestionSerializer
+
+    authentication_classes = [SessionAuthentication, TokenAuthentication]
     
     def createInsight(self, request):
         lesson_id = request.data.get('lesson_id')
@@ -131,15 +132,7 @@ class SuggestionController(ModelViewSet):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @api_view(['POST', 'OPTIONS'])
     def createContent(self, request):
-
-        if request.method == 'OPTIONS':
-            response = Response(status=200)  # You can return a 200 status for the OPTIONS request
-            response["Access-Control-Allow-Origin"] = "https://technodynamic.vercel.app"
-            response["Access-Control-Allow-Methods"] = "POST, OPTIONS"
-            response["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
-            return response
         
         lesson_id = request.data.get('lesson_id')
         notification_id = request.data.get('notification_id')
