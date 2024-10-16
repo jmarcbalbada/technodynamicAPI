@@ -46,7 +46,7 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 10,  # Adjust this value as needed
 }
 # ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "").split(",")
-ALLOWED_HOSTS =os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1,technodynamicv2-73437bf08784.herokuapp.com,https://technodynamic.vercel.app").split(",")
+ALLOWED_HOSTS =os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1,technodynamicv2-73437bf08784.herokuapp.com,technodynamic.vercel.app").split(",")
 # ALLOWED_HOSTS = ['.ngrok-free.app', '.vercel.app', 'technodynamic.vercel.app', '143.44.165.11','localhost',]
 
 # https://2044-143-44-165-11.ngrok-free.app
@@ -154,11 +154,11 @@ AUTH_PASSWORD_VALIDATORS = [
 # ]
 
 # Allow all origins
-# CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = True
 
 # If you need to send cookies or authorization headers
 # CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_PRIVATE_NETWORK = True
+# CORS_ALLOW_PRIVATE_NETWORK = True
 
 # CSRF_TRUSTED_ORIGINS = [
 #     "https://technodynamic.vercel.app",
@@ -169,17 +169,17 @@ CORS_ALLOW_PRIVATE_NETWORK = True
 
 
 # Whitelist for react port
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://localhost:5173",
-    "https://techno-dynamic-learning.vercel.app",
-    "http://localhost:8000",
-    "http://192.168.1.5:5173",
-    "https://143.44.165.11:5173",
-    "https://13f2-143-44-165-11.ngrok-free.app",
-    "https://technodynamic.vercel.app",
-    "https://143.44.165.11:5173"
-]
+# CORS_ALLOWED_ORIGINS = [
+#     "http://localhost:3000",
+#     "http://localhost:5173",
+#     "https://techno-dynamic-learning.vercel.app",
+#     "http://localhost:8000",
+#     "http://192.168.1.5:5173",
+#     "https://143.44.165.11:5173",
+#     "https://13f2-143-44-165-11.ngrok-free.app",
+#     "https://technodynamic.vercel.app",
+#     "https://143.44.165.11:5173"
+# ]
 
 # CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='http://localhost:3000,http://localhost:5173').split(',')
 CSRF_TRUSTED_ORIGINS = [
