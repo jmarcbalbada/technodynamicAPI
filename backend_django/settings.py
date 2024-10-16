@@ -70,12 +70,12 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
+    "corsheaders.middleware.CorsMiddleware",
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -143,8 +143,18 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOW_CREDENTIALS = True
+# CORS_ALLOW_ALL_ORIGINS = True
+# CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOWED_ORIGINS = [
+    "https://technodynamic.vercel.app",  # Add this
+    # Add other trusted origins as needed
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://technodynamic.vercel.app",
+    # Add other domains if necessary
+]
 
 # CORS_ALLOW_HEADERS = [
 #     'authorization',
@@ -167,17 +177,17 @@ CORS_ALLOW_CREDENTIALS = True
 # ]
 
 # CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='http://localhost:3000,http://localhost:5173').split(',')
-CSRF_TRUSTED_ORIGINS = [
-    "https://techno-learn.onrender.com",
-    "http://192.168.1.12",
-    "http://192.168.1.12:8000",  # Include this if you're accessing via port 8000
-    "http://192.168.1.5:5173",
-    "https://143.44.165.11:5173",
-    "https://13f2-143-44-165-11.ngrok-free.app",
-    "https://technodynamic.vercel.app",
-    "https://143.44.165.11:5173"
+# CSRF_TRUSTED_ORIGINS = [
+#     "https://techno-learn.onrender.com",
+#     "http://192.168.1.12",
+#     "http://192.168.1.12:8000",  # Include this if you're accessing via port 8000
+#     "http://192.168.1.5:5173",
+#     "https://143.44.165.11:5173",
+#     "https://13f2-143-44-165-11.ngrok-free.app",
+#     "https://technodynamic.vercel.app",
+#     "https://143.44.165.11:5173"
 
-]
+# ]
 
 
 
