@@ -162,7 +162,9 @@ CORS_ALLOW_PRIVATE_NETWORK = True
 
 CSRF_TRUSTED_ORIGINS = [
     "https://technodynamic.vercel.app",
-    "https://technodynamicv2-73437bf08784.herokuapp.com"
+    "https://technodynamicv2-73437bf08784.herokuapp.com",
+    "http://localhost:3000",
+    "http://localhost:5173",
 ]
 
 
