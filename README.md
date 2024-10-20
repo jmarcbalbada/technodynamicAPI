@@ -55,3 +55,14 @@ Follow these steps to set up and run the backend:
 ```bash
   python3 manage.py runserver / python manage.py runserver
 ```
+
+## Features
+The API is built using the Django REST framework and comes with Swagger documentation, which provides an interactive interface to explore and test the API. Once the server is running, you can access the Swagger documentation at:
+
+```bash
+  [docker compose up](http://localhost:8000/swagger/)
+```
+
+For concerns/inquiries, [contact](mailto:jmarcbalbada@gmail.com).
+
+> All rights reserved 2024.
