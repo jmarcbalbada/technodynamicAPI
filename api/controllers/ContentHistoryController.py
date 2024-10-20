@@ -6,6 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 from api.serializer.ContentHistorySerializer import ContentHistorySerializer
 from api.model.ContentHistory import ContentHistory
+from django.shortcuts import get_object_or_404
 from api.controllers.permissions.permissions import IsTeacher
 from api.controllers.LessonContentController import LessonContentsController
 from api.model.Lesson import Lesson
@@ -26,6 +27,7 @@ class ContentHistoryController(ModelViewSet):
     #         return [IsAuthenticated()]
     # allow permission for now
 
+    # Add content
     def createHistoryWithParent(self, request, lesson_id=None, parent_id=None):
         if not lesson_id:
             return Response({"error": "lesson_id is required"}, status=status.HTTP_400_BAD_REQUEST)
@@ -92,7 +94,59 @@ class ContentHistoryController(ModelViewSet):
             "data": ContentHistorySerializer(content_history).data
         }, status=status.HTTP_201_CREATED)
 
+    def getCurrentAndParentVersionInfo(self, request, lesson_id=None):
+        if not lesson_id:
+            return Response({"error": "lessonId is required"}, status=status.HTTP_400_BAD_REQUEST)
 
+        try:
+            # Fetch all LessonContent for the given lesson
+            lesson_contents = LessonContent.objects.filter(lesson_id=lesson_id).order_by('id')
+
+            if not lesson_contents.exists():
+                return Response({
+                    "message": "No content found for this lesson",
+                    "currentHistoryId": None,
+                    "parentHistoryId": None,
+                    "isNewLesson": True
+                }, status=status.HTTP_200_OK)
+
+            # Concatenate all lesson contents
+            concatenated_content = "".join([content.contents for content in lesson_contents])
+
+            # Fetch all ContentHistory objects for the given lesson
+            content_histories = ContentHistory.objects.filter(lessonId=lesson_id)
+
+            # Check if the concatenated content matches any parent or child version
+            for history in content_histories:
+                # If the concatenated content matches the parent version
+                if history.content == concatenated_content:
+                    parent_history = history.parent
+                    parent_history_id = parent_history.historyId if parent_history else None
+                    return Response({
+                        "currentHistoryId": history.historyId,
+                        "parentHistoryId": parent_history_id,
+                        "isCurrentParentVersion": parent_history is None
+                    }, status=status.HTTP_200_OK)
+
+                # If the concatenated content matches any child version
+                children = ContentHistory.objects.filter(parent=history)
+                for child in children:
+                    if child.content == concatenated_content:
+                        return Response({
+                            "currentHistoryId": child.historyId,
+                            "parentHistoryId": history.historyId,
+                            "isCurrentParentVersion": False
+                        }, status=status.HTTP_200_OK)
+
+            # If no matches are found, the concatenated content is new
+            return Response({
+                "currentHistoryId": None,
+                "parentHistoryId": None,
+                "isNewLesson": True
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def getHistoryByHistoryId(self, request, history_id=None):
 

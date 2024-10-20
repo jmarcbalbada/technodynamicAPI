@@ -64,6 +64,10 @@ content_historyWithLessonId_actions = {
     'get': 'getAllHistoryByLessonId',
 }
 
+content_historycheckVersion_actions = {
+    'get': 'getCurrentAndParentVersionInfo',
+}
+
 content_historyWithLessonsIdAndHistoryId_actions = {
     'put': 'restoreHistory',
 }
@@ -167,6 +171,7 @@ urlpatterns = [
     # History
     path('lessons/history/lesson/<int:lesson_id>/parent/<int:parent_id>/', ContentHistoryController.as_view(content_historyWithLessonId_actions)),
         # without parent_id
+    path('lessons/history/lesson/<int:lesson_id>/checkVersion/', ContentHistoryController.as_view(content_historycheckVersion_actions)),
     path('lessons/history/lesson/<int:lesson_id>/', ContentHistoryController.as_view(content_historyWithLessonId_actions)),
     path('lessons/history/history/<int:history_id>/', ContentHistoryController.as_view(content_historyWithHistoryId_actions)),
     path('lessons/history/adminControl/<int:lesson_id>/<int:history_id>/', ContentHistoryController.as_view(content_historyAdminControls_actions)),
