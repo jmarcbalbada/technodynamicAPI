@@ -60,7 +60,7 @@ Follow these steps to set up and run the backend:
 The API is built using the Django REST framework and comes with Swagger documentation, which provides an interactive interface to explore and test the API. Once the server is running, you can access the Swagger documentation at:
 
 ```bash
-  [docker compose up](http://localhost:8000/swagger/)
+ http://localhost:8000/swagger/
 ```
 
 For concerns/inquiries, [contact](mailto:jmarcbalbada@gmail.com).
