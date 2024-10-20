@@ -6,8 +6,11 @@ class ContentHistory(models.Model):
     historyId = models.AutoField(primary_key=True)
     lessonId = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name='lesson_id') 
     content = models.TextField()  
-    version = models.IntegerField(default=1)
+    version = models.CharField(max_length=10, default="1")
     updatedAt = models.DateTimeField(default=timezone.now)
+
+    # New field for referencing the parent version
+    parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='children')
 
     class Meta:
         verbose_name = 'Content History'

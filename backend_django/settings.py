@@ -15,9 +15,7 @@ from decouple import config
 import dj_database_url
 import environ
 from django.core.management.utils import get_random_secret_key
-
-# Generate a new secret key
-# secret_keys = get_random_secret_key()
+import os
 
 env = environ.Env()
 environ.Env.read_env()
@@ -25,32 +23,26 @@ environ.Env.read_env()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/s
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'akya^e5k7t@0u+h9%#a)+$*gy2^^@63x#9x4l=$g$7spm0juv5'
-# SECRET_KEY = secret_keys
-# print("Generated SECRET_KEY:", SECRET_KEY)
-# SECRET_KEY ="django-insecure-=m=*xj8xoy99#25^6_fl=4wkllzn48dsrp77q6+3-$69=y(z71"
-# SECRET_KEY = os.environ.get("SECRET_KEY")
+SECRET_KEY = os.getenv('SECRET_KEY', '')
+DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
-# SECURITY WARNING: don't run with debug turned on in production!
-# DEBUG = os.environ.get('DEBUG')
-# DEBUG = True
-DEBUG = True
+# Security settings
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',') if os.getenv('ALLOWED_HOSTS') else []
+
+# CSRF settings
+CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',') if os.getenv('CSRF_TRUSTED_ORIGINS') else []
+
+# CORS settings
+CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', '').split(',') if os.getenv('CORS_ALLOWED_ORIGINS') else []
+
 
 REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 10,  # Adjust this value as needed
+    'PAGE_SIZE': 10,
 }
-# ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "").split(",")
-ALLOWED_HOSTS =os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1,technodynamicv2-73437bf08784.herokuapp.com,technodynamic.vercel.app").split(",")
-# ALLOWED_HOSTS = ['.ngrok-free.app', '.vercel.app', 'technodynamic.vercel.app', '143.44.165.11','localhost',]
-
-# https://2044-143-44-165-11.ngrok-free.app
-
 
 # Application definition
 
@@ -107,23 +99,22 @@ WSGI_APPLICATION = 'backend_django.wsgi.application'
 
 # Localhost
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': config('POSTGRES_DB'),
-#         'USER': config('POSTGRES_USER'),
-#         'PASSWORD': config('POSTGRES_PASSWORD'),
-#         'HOST': 'localhost',
-#         'PORT': config('POSTGRES_PORT', default='5432'),
-#     }
-# }
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': config('POSTGRES_DB'),
+        'USER': config('POSTGRES_USER'),
+        'PASSWORD': config('POSTGRES_PASSWORD'),
+        'HOST': 'localhost',
+        'PORT': config('POSTGRES_PORT', default='5432'),
+    }
+}
 
 # Heroku
 
-DATABASES = {
-    'default': dj_database_url.parse(config("DATABASE_URL", default="postgres://username:password@localhost:5432/database_name"))
-}
-
+# DATABASES = {
+#     'default': dj_database_url.parse(config("DATABASE_URL", default="postgres://username:password@localhost:5432/database_name"))
+# }
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
@@ -143,59 +134,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# CORS_ALLOW_ALL_ORIGINS = True
-# CORS_ALLOW_CREDENTIALS = True
-
-# CORS_ALLOWED_ORIGINS = [
-#     "https://technodynamic.vercel.app",  # Frontend domain
-#     "https://technodynamicv2-73437bf08784.herokuapp.com",  # Backend domain
-#     "http://localhost:3000",  # Local dev
-#     "http://localhost:5173",  # Local dev with Vite
-# ]
-
-# Allow all origins
-CORS_ALLOW_ALL_ORIGINS = True
-
-# If you need to send cookies or authorization headers
-# CORS_ALLOW_CREDENTIALS = True
-# CORS_ALLOW_PRIVATE_NETWORK = True
-
-# CSRF_TRUSTED_ORIGINS = [
-#     "https://technodynamic.vercel.app",
-#     "https://technodynamicv2-73437bf08784.herokuapp.com",
-#     "http://localhost:3000",
-#     "http://localhost:5173",
-# ]
-
-
-# Whitelist for react port
-# CORS_ALLOWED_ORIGINS = [
-#     "http://localhost:3000",
-#     "http://localhost:5173",
-#     "https://techno-dynamic-learning.vercel.app",
-#     "http://localhost:8000",
-#     "http://192.168.1.5:5173",
-#     "https://143.44.165.11:5173",
-#     "https://13f2-143-44-165-11.ngrok-free.app",
-#     "https://technodynamic.vercel.app",
-#     "https://143.44.165.11:5173"
-# ]
-
-# CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='http://localhost:3000,http://localhost:5173').split(',')
-CSRF_TRUSTED_ORIGINS = [
-    "https://techno-learn.onrender.com",
-    "http://192.168.1.12",
-    "http://192.168.1.12:8000",  # Include this if you're accessing via port 8000
-    "http://192.168.1.5:5173",
-    "https://143.44.165.11:5173",
-    "https://13f2-143-44-165-11.ngrok-free.app",
-    "https://technodynamic.vercel.app",
-    "https://143.44.165.11:5173"
-
-]
-
-
-
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
 
@@ -214,12 +152,10 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'backend_django/static'),  # Use this if you put it in 'backend_django/static'
-    # Or use 'static' if you place it at the project root level
+    os.path.join(BASE_DIR, 'backend_django/static'), 
 ]
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')  # This is where 'collectstatic' will put your files for production
-
 
 # Optional but recommended for compression and caching
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
@@ -237,4 +173,3 @@ AUTH_USER_MODEL = 'api.CustomUser'
 
 # OpenAI API Key
 OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
-OLLAMA_API_KEY = config('OLLAMA_API_KEY', default='llama2')
