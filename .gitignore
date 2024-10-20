@@ -86,3 +86,6 @@ local_settings.py
 
 db.sqlite3
 .env
+.env.dev
+.env.prod
+read.py

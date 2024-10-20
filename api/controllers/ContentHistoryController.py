@@ -6,10 +6,13 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 from api.serializer.ContentHistorySerializer import ContentHistorySerializer
 from api.model.ContentHistory import ContentHistory
+from django.shortcuts import get_object_or_404
 from api.controllers.permissions.permissions import IsTeacher
 from api.controllers.LessonContentController import LessonContentsController
 from api.model.Lesson import Lesson
 from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import FloatField
+from django.db.models.functions import Cast
 
 class ContentHistoryController(ModelViewSet):
     queryset = ContentHistory.objects.all()
@@ -24,9 +27,8 @@ class ContentHistoryController(ModelViewSet):
     #         return [IsAuthenticated()]
     # allow permission for now
 
-
-    def createHistory(self, request, lesson_id=None):
-    
+    # Add content
+    def createHistoryWithParent(self, request, lesson_id=None, parent_id=None):
         if not lesson_id:
             return Response({"error": "lesson_id is required"}, status=status.HTTP_400_BAD_REQUEST)
         
@@ -34,41 +36,138 @@ class ContentHistoryController(ModelViewSet):
 
         try:
             # Check if the lesson exists
-            if not Lesson.objects.filter(id=lesson_id).exists():  # Assuming you have a Lesson model
+            if not Lesson.objects.filter(id=lesson_id).exists():
                 return Response({"error": "Lesson does not exist."}, status=status.HTTP_404_NOT_FOUND)
 
-            # Retrieve the latest version number for the given lesson_id
-            latest_version = ContentHistory.objects.filter(lessonId=lesson_id).count() + 1
+            # Fetch the parent history if provided (i.e., branching from an existing version)
+            parent_history = None
+            next_child_version = "1"  # Default for a root version if no parent is provided
+            
+            if parent_id:
+                try:
+                    parent_history = ContentHistory.objects.get(historyId=parent_id)
+                except ContentHistory.DoesNotExist:
+                    return Response({"error": "Parent history not found."}, status=status.HTTP_404_NOT_FOUND)
 
-            # Create the ContentHistory instance
+                # Fetch the latest child version of this parent
+                latest_child = ContentHistory.objects.filter(parent=parent_history).annotate(
+                    version_as_float=Cast('version', FloatField())  # Convert version to float for correct ordering
+                ).order_by('-version_as_float').first()
+
+                if latest_child:
+                    # If a child exists, increment the last child version (e.g., from 3.1 -> 3.2)
+                    parent_version = parent_history.version  # Assuming parent version is a string like "3"
+                    last_child_version = latest_child.version  # e.g., "3.1"
+                    if '.' in last_child_version:
+                        # Increment minor version (e.g., "3.1" -> "3.2")
+                        last_minor_version = int(last_child_version.split('.')[1])  # Get the minor version part (e.g., 1 from "3.1")
+                        next_child_version = f"{parent_version}.{last_minor_version + 1}"
+                    else:
+                        # If it's a root version like "3", start from 3.1
+                        next_child_version = f"{parent_history.version}.1"
+                else:
+                    # If no children exist, start with 3.1 (first child)
+                    next_child_version = f"{parent_history.version}.1"
+
+            # If no parent, the version stays as 1 or increments for root versions
+            elif ContentHistory.objects.filter(lessonId=lesson_id).exists():
+                # Fetch latest version and cast it to float for ordering
+                latest_version = ContentHistory.objects.filter(lessonId=lesson_id).annotate(
+                    version_as_float=Cast('version', FloatField())
+                ).order_by('-version_as_float').first()
+                next_child_version = str(int(float(latest_version.version)) + 1)  # Increment root version (e.g., 1 -> 2)
+
+            # Create the new ContentHistory with the calculated version
             content_history = ContentHistory.objects.create(
                 lessonId_id=lesson_id,
                 content=content,
-                version=latest_version
+                version=next_child_version,
+                parent=parent_history  # Set the parent reference if it exists
             )
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
+
         # Return both serialized data and the historyId
         return Response({
             "historyId": content_history.historyId,
             "data": ContentHistorySerializer(content_history).data
         }, status=status.HTTP_201_CREATED)
 
+    def getCurrentAndParentVersionInfo(self, request, lesson_id=None):
+        if not lesson_id:
+            return Response({"error": "lessonId is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Get history by historyId
+        try:
+            # Fetch all LessonContent for the given lesson
+            lesson_contents = LessonContent.objects.filter(lesson_id=lesson_id).order_by('id')
+
+            if not lesson_contents.exists():
+                return Response({
+                    "message": "No content found for this lesson",
+                    "currentHistoryId": None,
+                    "parentHistoryId": None,
+                    "isNewLesson": True
+                }, status=status.HTTP_200_OK)
+
+            # Concatenate all lesson contents
+            concatenated_content = "".join([content.contents for content in lesson_contents])
+
+            # Fetch all ContentHistory objects for the given lesson
+            content_histories = ContentHistory.objects.filter(lessonId=lesson_id)
+
+            # Check if the concatenated content matches any parent or child version
+            for history in content_histories:
+                # If the concatenated content matches the parent version
+                if history.content == concatenated_content:
+                    parent_history = history.parent
+                    parent_history_id = parent_history.historyId if parent_history else None
+                    return Response({
+                        "currentHistoryId": history.historyId,
+                        "parentHistoryId": parent_history_id,
+                        "isCurrentParentVersion": parent_history is None
+                    }, status=status.HTTP_200_OK)
+
+                # If the concatenated content matches any child version
+                children = ContentHistory.objects.filter(parent=history)
+                for child in children:
+                    if child.content == concatenated_content:
+                        return Response({
+                            "currentHistoryId": child.historyId,
+                            "parentHistoryId": history.historyId,
+                            "isCurrentParentVersion": False
+                        }, status=status.HTTP_200_OK)
+
+            # If no matches are found, the concatenated content is new
+            return Response({
+                "currentHistoryId": None,
+                "parentHistoryId": None,
+                "isNewLesson": True
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
     def getHistoryByHistoryId(self, request, history_id=None):
 
         if not history_id:
             return Response({"error": "history_id is required"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            # Fetch the ContentHistory by history_id (no need for lesson_id)
+            # Fetch the ContentHistory by history_id
             content_history = ContentHistory.objects.get(historyId=history_id)
-            
+
+            # Fetch all children of the content history
+            children = ContentHistory.objects.filter(parent=content_history)
+            children_serializer = ContentHistorySerializer(children, many=True)
+
+            # Serialize the parent content history
             serializer = ContentHistorySerializer(content_history)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+
+            return Response({
+                "parent_history": serializer.data,
+                "children": children_serializer.data  # Return the children in the response
+            }, status=status.HTTP_200_OK)
 
         except ContentHistory.DoesNotExist:
             return Response({"error": "ContentHistory not found."}, status=status.HTTP_404_NOT_FOUND)
@@ -76,25 +175,45 @@ class ContentHistoryController(ModelViewSet):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    # Get all content history for a specific lesson by lessonId
+        
+
     def getAllHistoryByLessonId(self, request, lesson_id=None):
 
         if not lesson_id:
             return Response({"error": "lesson_id is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Fetch content history
-        content_histories = ContentHistory.objects.filter(lessonId=lesson_id)
-        serializer = ContentHistorySerializer(content_histories, many=True)
+        # Fetch only parent content histories for the given lesson, ordered by version
+        content_histories = ContentHistory.objects.filter(lessonId=lesson_id, parent__isnull=True).annotate(
+            version_as_float=Cast('version', FloatField())
+        ).order_by('version_as_float')
+
+        histories_with_children = []
+        
+        for history in content_histories:
+            # Fetch children for each content history
+            children = ContentHistory.objects.filter(parent=history)
+            children_serializer = ContentHistorySerializer(children, many=True)
+
+            # Serialize the parent history
+            parent_serializer = ContentHistorySerializer(history)
+
+            # Combine parent and children in the result
+            histories_with_children.append({
+                "parent_history": parent_serializer.data,
+                "children": children_serializer.data
+            })
 
         # Fetch all the lesson contents for the lesson_id and concatenate them into a single string
         current_lesson_contents = LessonContent.objects.filter(lesson_id=lesson_id).order_by('id')
         concatenated_content = '\n'.join([content.contents for content in current_lesson_contents])
 
-        # Return content history and the concatenated lesson contents in the response
+        # Return content history with children and the concatenated lesson contents in the response
         return Response({
-            'content_history': serializer.data,
+            'content_histories': histories_with_children,  # All histories and their children
             'current_lesson': concatenated_content  # All lesson contents concatenated into one string
         }, status=status.HTTP_200_OK)
+
+
         
     # Restore Version [HttpPut]
     def restoreHistory(self, request, lesson_id=None, history_id=None):
@@ -180,12 +299,18 @@ class ContentHistoryController(ModelViewSet):
 
 
     def deleteHistory(self, request, lesson_id=None, history_id=None):
-      if not lesson_id or not history_id:
-          return Response({"error": "lesson_id and history_id are required"}, status=status.HTTP_400_BAD_REQUEST)
+        if not lesson_id or not history_id:
+            return Response({"error": "lesson_id and history_id are required"}, status=status.HTTP_400_BAD_REQUEST)
 
-      try:
-          content_history = ContentHistory.objects.get(pk=history_id, lessonId=lesson_id)
-          content_history.delete()
-          return Response(status=status.HTTP_204_NO_CONTENT)
-      except ContentHistory.DoesNotExist:
-          return Response({"error": "ContentHistory not found."}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            # Fetch the parent content history
+            content_history = ContentHistory.objects.get(pk=history_id, lessonId=lesson_id)
+
+            # Delete the parent (children will be deleted automatically with CASCADE)
+            content_history.delete()
+
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        except ContentHistory.DoesNotExist:
+            return Response({"error": "ContentHistory not found."}, status=status.HTTP_404_NOT_FOUND)
+
