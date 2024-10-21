@@ -155,7 +155,11 @@ class LessonController(GenericViewSet, ListModelMixin, RetrieveModelMixin, Creat
                         if not isinstance(content, str):
                             content = str(content)  # Convert to string if needed
 
-                        existing_page.contents = content + "<!-- delimiter -->"
+                        # Check and append delimiter if not present
+                        if not content.endswith("<!-- delimiter -->"):
+                            content += "<!-- delimiter -->"
+
+                        existing_page.contents = content
                         existing_page.url = page_data.get('url', None)
                         existing_page.files = page_data.get('files', None)
                         existing_page.save()
@@ -172,7 +176,11 @@ class LessonController(GenericViewSet, ListModelMixin, RetrieveModelMixin, Creat
                     if not isinstance(content, str):
                         content = str(content)
 
-                    new_page.set_contents(content + "<!-- delimiter -->")
+                    # Check and append delimiter if not present
+                    if not content.endswith("<!-- delimiter -->"):
+                        content += "<!-- delimiter -->"
+
+                    new_page.set_contents(content)
                     new_page.set_url(page_data.get('url', None))
                     new_page.set_file(page_data.get('files', None))
                     new_page.save()
@@ -229,7 +237,6 @@ class LessonController(GenericViewSet, ListModelMixin, RetrieveModelMixin, Creat
         response_data['lesson_files'] = updated_files_data
 
         return Response(response_data)
-
 
 
     def patchLesson(self, request, lesson_id=None):
