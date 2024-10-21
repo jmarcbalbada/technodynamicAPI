@@ -160,6 +160,10 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')  # This is where 'collectsta
 # Optional but recommended for compression and caching
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
+
+FILES_ROOT = os.path.join(BASE_DIR, 'files')
+FILES_URL = '/files/'
+
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 MEDIA_URL = '/media/'
 
