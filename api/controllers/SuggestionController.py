@@ -140,95 +140,96 @@ class SuggestionController(ModelViewSet):
     
 
     def createContent(self, request):
-        lesson_id = request.data.get('lesson_id')
-        notification_id = request.data.get('notification_id')
-
-        if not lesson_id or not notification_id:
-            response = Response({"error": "lesson_id or notification_id is required"}, status=status.HTTP_400_BAD_REQUEST)
-            response["Access-Control-Allow-Origin"] = "https://technodynamic.vercel.app"
-            return response
-
-        # Guard: Check if lesson and notification exist
-        existing_lesson = Lesson.objects.filter(id=lesson_id).first()
-        existing_notification = Notification.objects.filter(notif_id=notification_id).first()
-
-        if not existing_lesson or not existing_notification:
-            response = Response({"error": "Lesson or Notification does not exist."}, status=status.HTTP_400_BAD_REQUEST)
-            response["Access-Control-Allow-Origin"] = "https://technodynamic.vercel.app"
-            return response
-
-        # Check if suggestions exist for the lesson
-        suggestions = Suggestion.objects.filter(lesson_id=lesson_id)
-        if suggestions.exists():
-            existing_suggestion = suggestions.first()
-            IsCreated = False
-        else:
-            existing_suggestion = Suggestion.objects.create(lesson_id=lesson_id)
-            IsCreated = True
-
-        # Fetch lesson contents
-        lesson_contents = LessonContent.objects.filter(lesson_id=lesson_id)
-        lesson_content_serializer = LessonContentSerializer(lesson_contents, many=True)
-        lesson_content_data = lesson_content_serializer.data
-        lesson_content_text = "\n".join([content['contents'] for content in lesson_content_data if 'contents' in content])
-
-        # Get grouped questions related to notification_id
-        grouped_questions = GroupedQuestions.objects.filter(notification_id=notification_id, lesson_id=lesson_id)
-        faqs = Faq.objects.filter(grouped_questions__in=grouped_questions).select_related('grouped_questions__notification')
-        faq_questions = [faq.question for faq in faqs if faq.grouped_questions and faq.grouped_questions.notification]
-
-        input_text = prompt_create_content_abs(faq_questions, lesson_content_text)
-
-        try:
-            # Call OpenAI API to get the suggestion
-            openai.api_key = os.environ.get("OPENAI_API_KEY")
-            response = openai.ChatCompletion.create(
-                # model="gpt-4o-mini",
-                model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": SUGGESTION_SYSTEM_CONTENT},
-                    {"role": "user", "content": input_text}
-                ],
-                max_tokens=5700,
-                temperature=0.5,
-            )
-            ai_response = response['choices'][0]['message']['content'].strip()
-            ai_response = ai_response.replace('\n', '').replace('**', '')
-
-            # Clean all marks
-            propose_ai_content = self.cleanMarkAiContent(ai_response)
-
-            # Update suggestion with the cleaned content
-            existing_suggestion.content = propose_ai_content
-            if not existing_suggestion.old_content:
-                existing_suggestion.old_content = lesson_content_text
-            existing_suggestion.save()
+        # lesson_id = request.data.get('lesson_id')
+        # notification_id = request.data.get('notification_id')
+        #
+        # if not lesson_id or not notification_id:
+        #     response = Response({"error": "lesson_id or notification_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+        #     response["Access-Control-Allow-Origin"] = "https://technodynamic.vercel.app"
+        #     return response
+        #
+        # # Guard: Check if lesson and notification exist
+        # existing_lesson = Lesson.objects.filter(id=lesson_id).first()
+        # existing_notification = Notification.objects.filter(notif_id=notification_id).first()
+        #
+        # if not existing_lesson or not existing_notification:
+        #     response = Response({"error": "Lesson or Notification does not exist."}, status=status.HTTP_400_BAD_REQUEST)
+        #     response["Access-Control-Allow-Origin"] = "https://technodynamic.vercel.app"
+        #     return response
+        #
+        # # Check if suggestions exist for the lesson
+        # suggestions = Suggestion.objects.filter(lesson_id=lesson_id)
+        # if suggestions.exists():
+        #     existing_suggestion = suggestions.first()
+        #     IsCreated = False
+        # else:
+        #     existing_suggestion = Suggestion.objects.create(lesson_id=lesson_id)
+        #     IsCreated = True
+        #
+        # # Fetch lesson contents
+        # lesson_contents = LessonContent.objects.filter(lesson_id=lesson_id)
+        # lesson_content_serializer = LessonContentSerializer(lesson_contents, many=True)
+        # lesson_content_data = lesson_content_serializer.data
+        # lesson_content_text = "\n".join([content['contents'] for content in lesson_content_data if 'contents' in content])
+        #
+        # # Get grouped questions related to notification_id
+        # grouped_questions = GroupedQuestions.objects.filter(notification_id=notification_id, lesson_id=lesson_id)
+        # faqs = Faq.objects.filter(grouped_questions__in=grouped_questions).select_related('grouped_questions__notification')
+        # faq_questions = [faq.question for faq in faqs if faq.grouped_questions and faq.grouped_questions.notification]
+        #
+        # input_text = prompt_create_content_abs(faq_questions, lesson_content_text)
+        #
+        # try:
+        #     # Call OpenAI API to get the suggestion
+        #     openai.api_key = os.environ.get("OPENAI_API_KEY")
+        #     response = openai.ChatCompletion.create(
+        #         # model="gpt-4o-mini",
+        #         model="gpt-4o",
+        #         messages=[
+        #             {"role": "system", "content": SUGGESTION_SYSTEM_CONTENT},
+        #             {"role": "user", "content": input_text}
+        #         ],
+        #         max_tokens=5700,
+        #         temperature=0.5,
+        #     )
+        #     ai_response = response['choices'][0]['message']['content'].strip()
+        #     ai_response = ai_response.replace('\n', '').replace('**', '')
+        #
+        #     # Clean all marks
+        #     propose_ai_content = self.cleanMarkAiContent(ai_response)
+        #
+        #     # Update suggestion with the cleaned content
+        #     existing_suggestion.content = propose_ai_content
+        #     if not existing_suggestion.old_content:
+        #         existing_suggestion.old_content = lesson_content_text
+        #     existing_suggestion.save()
 
             # Prepare response data
             response_data = {
-                'suggestion': SuggestionSerializer(existing_suggestion).data,
-                'ai_response': ai_response
+                'suggestion': 'what the heder?',
+                'ai_response':'testing?'
             }
 
             # Return response with CORS headers
-            response = Response(response_data, status=status.HTTP_201_CREATED if IsCreated else status.HTTP_200_OK)
-            response["Access-Control-Allow-Origin"] = "https://technodynamic.vercel.app"
-            return response
+            # response = Response(response_data, status=status.HTTP_201_CREATED if IsCreated else status.HTTP_200_OK)
+            # response["Access-Control-Allow-Origin"] = "https://technodynamic.vercel.app"
+            return Response(response_data, status=status.HTTP_200_OK)
 
-        except HTTPError as http_err:
-            # Log 503 specific errors and handle them
-            if http_err.response.status_code == 503:
-                self.logger.error(f"Service Unavailable (503): {http_err}")
-                response = Response({"error": "Service Unavailable. Please try again later."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-                response["Access-Control-Allow-Origin"] = "https://technodynamic.vercel.app"
-                return response
 
-        except Exception as e:
-            # Catch any other errors and print/log them
-            self.logger.error(f"Error: {str(e)}")
-            response = Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            response["Access-Control-Allow-Origin"] = "https://technodynamic.vercel.app"
-            return response
+        # except HTTPError as http_err:
+        #     # Log 503 specific errors and handle them
+        #     if http_err.response.status_code == 503:
+        #         self.logger.error(f"Service Unavailable (503): {http_err}")
+        #         response = Response({"error": "Service Unavailable. Please try again later."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        #         response["Access-Control-Allow-Origin"] = "https://technodynamic.vercel.app"
+        #         return response
+        #
+        # except Exception as e:
+        #     # Catch any other errors and print/log them
+        #     self.logger.error(f"Error: {str(e)}")
+        #     response = Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        #     response["Access-Control-Allow-Origin"] = "https://technodynamic.vercel.app"
+        #     return response
 
 
     # def createContent(self, request):
