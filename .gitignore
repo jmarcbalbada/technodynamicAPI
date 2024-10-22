@@ -89,3 +89,6 @@ db.sqlite3
 .env.dev
 .env.prod
 read.py
+*.env
+env.dev
+media/files/Jaen_-_Pairwork.pdf
