@@ -369,8 +369,8 @@ class SuggestionController(ModelViewSet):
                                 status=status.HTTP_404_NOT_FOUND)
 
             # filtering the yellow and red mark
-            newer_content = self.cleanMarkAiContent(new_content)
-            suggestion.content = newer_content
+            # newer_content = self.cleanMarkAiContent(new_content)
+            suggestion.content = new_content
             suggestion.save()
 
             # Process content via pagination (split by delimiter)
