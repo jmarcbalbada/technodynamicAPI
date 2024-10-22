@@ -18,6 +18,7 @@ from .controllers.NotificationController import NotificationController
 from .controllers.ContentHistoryController import ContentHistoryController
 from rest_framework.routers import SimpleRouter
 
+from .model.Suggestion import Suggestion
 
 content_detail_actions = {
     'post': 'create',
@@ -148,6 +149,8 @@ routes.register('faqs', FaqController)
 routes.register('teacher', TeacherController)
 routes.register('questions', GroupedQuestionsController)
 routes.register('notification', NotificationController)
+routes.register('suggestionss', SuggestionController)
+
 urlpatterns = [
 
     path('', include(routes.urls)),
