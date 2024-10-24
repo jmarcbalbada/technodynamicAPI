@@ -137,7 +137,11 @@ suggestion_insight_actions = {
 }
 
 suggestion_content_actions = {
-  'post': 'createContent'
+  'post': 'getContentIfExist'
+}
+
+suggestion_startWorkerContent_actions = {
+  'post': 'startBackgroundCreation'
 }
 
 APPEND_SLASH = True
@@ -148,6 +152,7 @@ routes.register('faqs', FaqController)
 routes.register('teacher', TeacherController)
 routes.register('questions', GroupedQuestionsController)
 routes.register('notification', NotificationController)
+
 urlpatterns = [
 
     path('', include(routes.urls)),
@@ -220,6 +225,7 @@ urlpatterns = [
 
     path('suggestions/insights/', SuggestionController.as_view(suggestion_insight_actions)),
     path('suggestions/contents/', SuggestionController.as_view(suggestion_content_actions)),
+    path('suggestions/contents/startWorker/', SuggestionController.as_view(suggestion_startWorkerContent_actions)),
     
     # Get suggestions by lesson ID
     path('lessons/<int:lesson_id>/suggestions/', SuggestionController.as_view({'get': 'list'})),
