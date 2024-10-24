@@ -23,6 +23,7 @@ from api.model.LessonContent import LessonContent
 from api.model.Query import Query
 import threading
 from django.db import transaction
+from django.db.models import Q
 import time
 from api.model.GroupedQuestions import GroupedQuestions
 from api.model.SubQuery import SubQuery
@@ -224,17 +225,16 @@ class SuggestionController(ModelViewSet):
     def createContentForAllNotifications(self):
         """
         Continuously traverse through all notifications and create or update suggestions.
-        Stops when there are no more notifications without suggestions.
+        Stops when there are no more notifications without suggestions or without content.
         """
-
         while self.isRunning:
-            # Fetch notifications that do not have associated suggestions
+            # Fetch notifications without a suggestion or with a suggestion having no content
             notifications = Notification.objects.filter(
-                notification__isnull=True
-            )
+                Q(notification__isnull=True) | Q(notification__content__isnull=True)
+            ).distinct()
 
             if notifications.exists():
-                # Process each notification without a suggestion
+                # Process each notification that needs a suggestion
                 for notification in notifications:
                     self.createOrUpdateSuggestion(notification)
 
@@ -243,8 +243,9 @@ class SuggestionController(ModelViewSet):
 
             else:
                 # No notifications to process, sleep longer before rechecking
-                print("No more notifications to process. Sleeping for 5 minutes...")
-                time.sleep(300)  # Sleep for 5 minutes before checking again
+                print("No more notifications to process. Sleeping for 1 minute...")
+                time.sleep(15)  # Sleep for 5 minutes before checking again
+    # Sleep for 5 minutes before checking again
 
 
         # while self.isRunning:
@@ -284,7 +285,7 @@ class SuggestionController(ModelViewSet):
             )
 
             # If suggestion already has content, skip further processing
-            if not created and suggestion.content:
+            if suggestion.content:
                 print(f"Suggestion already exists for notification {notification.notif_id}. Skipping...")
                 return
 
@@ -318,7 +319,7 @@ class SuggestionController(ModelViewSet):
                 if not suggestion.old_content:
                     suggestion.old_content = lessonContentText
                 suggestion.save()
-                print(f"Suggestion created for notification {notification.notif_id}: {suggestion.content}")
+                print(f"Suggestion created for notification {notification.notif_id}: {suggestion.content}\n\n\n")
 
         except Exception as e:
             import traceback
