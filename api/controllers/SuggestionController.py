@@ -1,5 +1,6 @@
 import re
 from datetime import datetime
+import traceback
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
@@ -16,26 +17,30 @@ from langchain.chains import ConversationChain
 from langchain.memory import ConversationSummaryBufferMemory
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 from api.model.Faq import Faq
+from rest_framework.decorators import action
 from api.model.Lesson import Lesson
 from api.model.LessonContent import LessonContent
 from api.model.Query import Query
+import threading
+from django.db import transaction
+from django.db.models import Q
+import time
 from api.model.GroupedQuestions import GroupedQuestions
 from api.model.SubQuery import SubQuery
 from api.controllers.static.prompts import *
 from api.controllers.LessonContentController import LessonContentsController
 import openai
-import logging
 from requests.exceptions import HTTPError
-
 import os
+from django.views.decorators.csrf import csrf_exempt
 
 class SuggestionController(ModelViewSet):
     queryset = Suggestion.objects.all()
     serializer_class = SuggestionSerializer
 
     authentication_classes = [SessionAuthentication, TokenAuthentication]
-    # Create a logger
-    logger = logging.getLogger(__name__)
+
+    isRunning = False  # Class-level variable to track background process status
     
     def createInsight(self, request):
         lesson_id = request.data.get('lesson_id')
@@ -45,34 +50,28 @@ class SuggestionController(ModelViewSet):
             return Response({"error": "lesson_id or notification_id is required"}, status=status.HTTP_400_BAD_REQUEST)
         
         # guard lesson and notification check if exists
+        print("Checking existing lesson and notification...")
         existing_lesson = Lesson.objects.filter(id=lesson_id).first()
         existing_notification = Notification.objects.filter(notif_id=notification_id).first()
 
         if not existing_lesson or not existing_notification:
             return Response({"error": "Lesson or Notification does not exist."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # # Check if a suggestion already exists for the lesson
-        # existing_suggestion, IsCreated = Suggestion.objects.get_or_create(lesson_id=lesson_id)
-
-        # Check if there are any existing suggestions for the lesson
-        # substitute for get_or_create method
-        suggestions = Suggestion.objects.filter(lesson_id=lesson_id)
+        # filter suggestion with notif_id 
+        print("Suggestion")
+        suggestions = Suggestion.objects.filter(lesson_id=lesson_id, notification_id=notification_id)
 
         if suggestions.exists():
-            
             # If only one suggestion exists, use that suggestion
             existing_suggestion = suggestions.first()
             IsCreated = False
         else:
             # Create a new suggestion
-            existing_suggestion = Suggestion.objects.create(lesson_id=lesson_id)
+            existing_suggestion = Suggestion.objects.create(lesson_id=lesson_id, notification_id=notification_id)
             IsCreated = True
 
-        # Check if existing_suggestion has insight value early return
-        # if existing_suggestion and existing_suggestion.insights:
-        #     return Response(SuggestionSerializer(existing_suggestion).data, status=status.HTTP_200_OK)
-
         # Fetch lesson contents
+        print("Fetching lesson contents...")
         lesson_contents = LessonContent.objects.filter(lesson_id=lesson_id)
         
         # Serialize and clean lesson content data
@@ -84,6 +83,7 @@ class SuggestionController(ModelViewSet):
         # print("content: ", lesson_content_text)
 
         # Get grouped questions related to the given notification_id
+        print("Fetching grouped questions...")
         grouped_questions = GroupedQuestions.objects.filter(notification_id=notification_id, lesson_id=lesson_id)
         
         # Get FAQs related to these grouped questions
@@ -92,6 +92,30 @@ class SuggestionController(ModelViewSet):
         # Prepare the response data with only questions
         faq_questions = [faq.question for faq in faqs if faq.grouped_questions and faq.grouped_questions.notification]
 
+        # early return
+        if(existing_suggestion.insights is not None):
+
+            if not existing_suggestion.old_content:
+                existing_suggestion.old_content = lesson_content_text
+
+            existing_suggestion.save()
+
+            # Reformat faq_questions into bullet points
+            formatted_faq_questions = '<p><i>'.join([f"&#8226; {question}" for question in faq_questions]) + '</i></p>'
+
+            response_data = {
+                "suggestion": SuggestionSerializer(existing_suggestion).data,
+                "faq_questions": formatted_faq_questions
+            }
+
+            print("Insight is already created, fetching...")
+
+            if IsCreated:
+                return Response(response_data, status=status.HTTP_201_CREATED)
+            
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        # else create one
         input_text = prompt_create_insights_abs(faq_questions,lesson_content_text)
         
         try:
@@ -107,17 +131,13 @@ class SuggestionController(ModelViewSet):
                 temperature=0.7,
             )
             ai_response = response['choices'][0]['message']['content'].strip()
-            ai_response = ai_response.replace('\n', '')
-            # Remove any instances of ** from the response
-            ai_response = ai_response.replace('**', '')
-            # print("AI RESPONSE:", ai_response)
 
             # Update the existing suggestion with the new insights and old content
             existing_suggestion.insights = ai_response
-            # existing_suggestion.content = None
+
             if not existing_suggestion.old_content:
                 existing_suggestion.old_content = lesson_content_text
-            # print("old content",existing_suggestion.old_content)
+
             existing_suggestion.save()
 
             # Reformat faq_questions into bullet points
@@ -128,230 +148,184 @@ class SuggestionController(ModelViewSet):
                 "faq_questions": formatted_faq_questions
             }
 
+            print("Insight is created now, fetching...")
+
             if IsCreated:
                 return Response(response_data, status=status.HTTP_201_CREATED)
             
             return Response(response_data, status=status.HTTP_200_OK)
 
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            stack_trace = traceback.format_exc()
+            print(f"Error: {str(e)}\nStack Trace:\n{stack_trace}")
+            return Response({"error": str(e), "stack_trace": stack_trace}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+    def getContentIfExist(self, request):
+        lesson_id = request.data.get('lesson_id')
+        notification_id = request.data.get('notification_id')
 
+        if not lesson_id or not notification_id:
+            return Response({"error": "lesson_id or notification_id is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-    
+        # Guard: Check if lesson and notification exist
+        existing_lesson = Lesson.objects.filter(id=lesson_id).first()
+        existing_notification = Notification.objects.filter(notif_id=notification_id).first()
 
-    def createContent(self, request):
-        # lesson_id = request.data.get('lesson_id')
-        # notification_id = request.data.get('notification_id')
-        #
-        # if not lesson_id or not notification_id:
-        #     response = Response({"error": "lesson_id or notification_id is required"}, status=status.HTTP_400_BAD_REQUEST)
-        #     response["Access-Control-Allow-Origin"] = "https://technodynamic.vercel.app"
-        #     return response
-        #
-        # # Guard: Check if lesson and notification exist
-        # existing_lesson = Lesson.objects.filter(id=lesson_id).first()
-        # existing_notification = Notification.objects.filter(notif_id=notification_id).first()
-        #
-        # if not existing_lesson or not existing_notification:
-        #     response = Response({"error": "Lesson or Notification does not exist."}, status=status.HTTP_400_BAD_REQUEST)
-        #     response["Access-Control-Allow-Origin"] = "https://technodynamic.vercel.app"
-        #     return response
-        #
-        # # Check if suggestions exist for the lesson
-        # suggestions = Suggestion.objects.filter(lesson_id=lesson_id)
-        # if suggestions.exists():
-        #     existing_suggestion = suggestions.first()
-        #     IsCreated = False
-        # else:
-        #     existing_suggestion = Suggestion.objects.create(lesson_id=lesson_id)
-        #     IsCreated = True
-        #
-        # # Fetch lesson contents
-        # lesson_contents = LessonContent.objects.filter(lesson_id=lesson_id)
-        # lesson_content_serializer = LessonContentSerializer(lesson_contents, many=True)
-        # lesson_content_data = lesson_content_serializer.data
-        # lesson_content_text = "\n".join([content['contents'] for content in lesson_content_data if 'contents' in content])
-        #
-        # # Get grouped questions related to notification_id
-        # grouped_questions = GroupedQuestions.objects.filter(notification_id=notification_id, lesson_id=lesson_id)
-        # faqs = Faq.objects.filter(grouped_questions__in=grouped_questions).select_related('grouped_questions__notification')
-        # faq_questions = [faq.question for faq in faqs if faq.grouped_questions and faq.grouped_questions.notification]
-        #
-        # input_text = prompt_create_content_abs(faq_questions, lesson_content_text)
-        #
-        # try:
-        #     # Call OpenAI API to get the suggestion
-        #     openai.api_key = os.environ.get("OPENAI_API_KEY")
-        #     response = openai.ChatCompletion.create(
-        #         # model="gpt-4o-mini",
-        #         model="gpt-4o",
-        #         messages=[
-        #             {"role": "system", "content": SUGGESTION_SYSTEM_CONTENT},
-        #             {"role": "user", "content": input_text}
-        #         ],
-        #         max_tokens=5700,
-        #         temperature=0.5,
-        #     )
-        #     ai_response = response['choices'][0]['message']['content'].strip()
-        #     ai_response = ai_response.replace('\n', '').replace('**', '')
-        #
-        #     # Clean all marks
-        #     propose_ai_content = self.cleanMarkAiContent(ai_response)
-        #
-        #     # Update suggestion with the cleaned content
-        #     existing_suggestion.content = propose_ai_content
-        #     if not existing_suggestion.old_content:
-        #         existing_suggestion.old_content = lesson_content_text
-        #     existing_suggestion.save()
+        if not existing_lesson or not existing_notification:
+            return Response({"error": "Lesson or Notification does not exist."}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Prepare response data
+        try:
+            # Check if suggestions exist for the lesson and notification
+            existing_suggestions = Suggestion.objects.filter(lesson_id=lesson_id, notification_id=notification_id)
+
+            if existing_suggestions.exists():
+                suggestion_with_content = existing_suggestions.filter(content__isnull=False).first()
+
+                if suggestion_with_content:
+                    # Prepare response data with content
+                    response_data = {
+                        'suggestion': SuggestionSerializer([suggestion_with_content], many=True).data,
+                        'isPending': False
+                    }
+                    return Response(response_data, status=status.HTTP_200_OK)
+
+            # No suggestions with content, set isPending=True
             response_data = {
-                'suggestion': 'what the heder?',
-                'ai_response':'testing?'
+                'suggestion': [],
+                'isPending': True
             }
+            return Response(response_data, status=status.HTTP_200_OK)  # Changed to 200 OK
 
-            # Return response with CORS headers
-            # response = Response(response_data, status=status.HTTP_201_CREATED if IsCreated else status.HTTP_200_OK)
-            # response["Access-Control-Allow-Origin"] = "https://technodynamic.vercel.app"
-            return Response(response_data, status=status.HTTP_200_OK)
-
-
-        # except HTTPError as http_err:
-        #     # Log 503 specific errors and handle them
-        #     if http_err.response.status_code == 503:
-        #         self.logger.error(f"Service Unavailable (503): {http_err}")
-        #         response = Response({"error": "Service Unavailable. Please try again later."}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-        #         response["Access-Control-Allow-Origin"] = "https://technodynamic.vercel.app"
-        #         return response
-        #
-        # except Exception as e:
-        #     # Catch any other errors and print/log them
-        #     self.logger.error(f"Error: {str(e)}")
-        #     response = Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        #     response["Access-Control-Allow-Origin"] = "https://technodynamic.vercel.app"
-        #     return response
+        except Exception as e:
+            stack_trace = traceback.format_exc()
+            return Response({"error": str(e), "stack_trace": stack_trace}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-    # def createContent(self, request):
         
-    #     lesson_id = request.data.get('lesson_id')
-    #     notification_id = request.data.get('notification_id')
-        
-    #     if not lesson_id or not notification_id:
-    #         return Response({"error": "lesson_id or notification_id is required"}, status=status.HTTP_400_BAD_REQUEST)
-        
-    #     # guard lesson and notification check if exists
-    #     existing_lesson = Lesson.objects.filter(id=lesson_id).first()
-    #     existing_notification = Notification.objects.filter(notif_id=notification_id).first()
+    ###--------------------------------------------------------------------------------------------------------###
+    #                                                                                                            #
+    #    CREATING CONTENTS                                                                                       # 
+    #    startBackgroundCreation - starts the process and traverse all the notification and asoociated lessons   #
+    #                                                                                                            #
+    ###--------------------------------------------------------------------------------------------------------###
+    
+    @csrf_exempt
+    def startBackgroundCreation(self, request):
+        """
+        Start background content creation process.
+        """
+        if not self.isRunning:
+            self.isRunning = True
+            thread = threading.Thread(target=self.createContentForAllNotifications, daemon=True)
+            thread.start()
+            return Response({"status": "Background content creation started."}, status=status.HTTP_200_OK)
+        else:
+            return Response({"status": "Background content creation is already running."}, status=status.HTTP_400_BAD_REQUEST)
 
-    #     if not existing_lesson or not existing_notification:
-    #         return Response({"error": "Lesson or Notification does not exist."}, status=status.HTTP_400_BAD_REQUEST)
+    def createContentForAllNotifications(self):
+        """
+        Continuously traverse through all notifications and create or update suggestions.
+        Stops when there are no more notifications without suggestions or without content.
+        """
+        while self.isRunning:
+            # Fetch notifications without a suggestion or with a suggestion having no content
+            notifications = Notification.objects.filter(
+                Q(notification__isnull=True) | Q(notification__content__isnull=True)
+            ).distinct()
 
-    #     # # Check if a suggestion already exists for the lesson
-    #     # existing_suggestion, IsCreated = Suggestion.objects.get_or_create(lesson_id=lesson_id)
+            if notifications.exists():
+                # Process each notification that needs a suggestion
+                for notification in notifications:
+                    self.createOrUpdateSuggestion(notification)
 
-    #     suggestions = Suggestion.objects.filter(lesson_id=lesson_id)
+                # Short sleep to avoid rapid looping (prevents high CPU usage)
+                time.sleep(1)
 
-    #     if suggestions.exists():
+            else:
+                # No notifications to process, sleep longer before rechecking
+                print("No more notifications to process. Sleeping for 1 minute...")
+                time.sleep(15)  # Sleep for 5 minutes before checking again
+    # Sleep for 5 minutes before checking again
+
+
+        # while self.isRunning:
+        #     # Fetch notifications that do not have an associated suggestion
+        #     notifications = Notification.objects.filter(
+        #         notification__isnull=True
+        #     )
+
+        #     if notifications.exists():
+        #         # Process each notification without a suggestion
+        #         for notification in notifications:
+        #             self.createOrUpdateSuggestion(notification)
+        #     else:
+        #         # No more notifications to process, stop the loop
+        #         print("No more notifications to process. Stopping background creation.")
+        #         self.isRunning = False
+        #         break
+
+        #     # Short sleep to avoid rapid looping (prevents high CPU usage)
+        #     time.sleep(1)
+
+    def createOrUpdateSuggestion(self, notification):
+        """
+        Create or update a suggestion for a given notification.
+        """
+        try:
+            lesson = notification.lesson  # Get related lesson from notification
             
-    #         # If only one suggestion exists, use that suggestion
-    #         existing_suggestion = suggestions.first()
-    #         IsCreated = False
-    #     else:
-    #         # Create a new suggestion
-    #         existing_suggestion = Suggestion.objects.create(lesson_id=lesson_id)
-    #         IsCreated = True
+            if not lesson:
+                return  # Skip if no lesson is related
 
-    #     # Check if existing_suggestion has insight value early return
-    #     # if existing_suggestion and existing_suggestion.content:
-    #     #     return Response(SuggestionSerializer(existing_suggestion).data, status=status.HTTP_200_OK)
+            # Check if a suggestion already exists for this notification
+            suggestion, created = Suggestion.objects.get_or_create(
+                lesson=lesson, 
+                notification_id=notification.notif_id,
+                defaults={'old_content': ''}
+            )
+
+            # If suggestion already has content, skip further processing
+            if suggestion.content:
+                print(f"Suggestion already exists for notification {notification.notif_id}. Skipping...")
+                return
+
+            # Fetch lesson contents
+            lessonContents = LessonContent.objects.filter(lesson=lesson)
+            lessonContentText = "\n".join([content.contents for content in lessonContents])
+
+            # Get grouped questions related to the notification
+            groupedQuestions = GroupedQuestions.objects.filter(notification=notification, lesson=lesson)
+            faqs = Faq.objects.filter(grouped_questions__in=groupedQuestions).select_related('grouped_questions__notification')
+            faqQuestions = [faq.question for faq in faqs if faq.grouped_questions and faq.grouped_questions.notification]
+
+            inputText = prompt_create_content_abs(faqQuestions, lessonContentText)
+
+            # Call OpenAI API to get the suggestion
+            openai.api_key = os.environ.get("OPENAI_API_KEY")
+            response = openai.ChatCompletion.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": SUGGESTION_SYSTEM_CONTENT},
+                    {"role": "user", "content": inputText}
+                ],
+                max_tokens=5700,
+                temperature=0.5,
+            )
+            aiResponse = response['choices'][0]['message']['content'].strip()
+
+            # Update or create the suggestion
+            with transaction.atomic():
+                suggestion.content = aiResponse
+                if not suggestion.old_content:
+                    suggestion.old_content = lessonContentText
+                suggestion.save()
+                print(f"Suggestion created for notification {notification.notif_id}: {suggestion.content}\n\n\n")
+
+        except Exception as e:
+            import traceback
+            print(f"Error in creating content for notification {notification.notif_id}: {e}")
+            traceback.print_exc()
         
-    #     # Fetch lesson contents
-    #     lesson_contents = LessonContent.objects.filter(lesson_id=lesson_id)
-        
-    #     # Serialize and clean lesson content data
-    #     lesson_content_serializer = LessonContentSerializer(lesson_contents, many=True)
-    #     lesson_content_data = lesson_content_serializer.data
-
-    #     # Ensure the content field exists in lesson content data
-    #     lesson_content_text = "\n".join([content['contents'] for content in lesson_content_data if 'contents' in content])
-    #     # print("con    tent: ", lesson_content_text)
-
-    #     # Get grouped questions related to the given notification_id
-    #     grouped_questions = GroupedQuestions.objects.filter(notification_id=notification_id, lesson_id=lesson_id)
-        
-    #     # Get FAQs related to these grouped questions
-    #     faqs = Faq.objects.filter(grouped_questions__in=grouped_questions).select_related('grouped_questions__notification')
-
-    #     # Prepare the response data with only questions
-    #     faq_questions = [faq.question for faq in faqs if faq.grouped_questions and faq.grouped_questions.notification]
-
-    #     input_text = prompt_create_content_abs(faq_questions,lesson_content_text)
-        
-    #     try:
-    #         # Call OpenAI API to get the suggestion
-    #         openai.api_key = os.environ.get("OPENAI_API_KEY")
-    #         response = openai.ChatCompletion.create(
-    #             model="gpt-4o-mini",
-    #             messages=[
-    #                 {"role": "system", "content": SUGGESTION_SYSTEM_CONTENT},
-    #                 {"role": "user", "content": input_text}
-    #             ],
-    #             # max_tokens=6000, # enough tokens for now
-    #             max_tokens=4000, # enough tokens for now
-    #             temperature=0.5, # more creative
-    #         )
-    #         ai_response = response['choices'][0]['message']['content'].strip()
-    #         # Preprocess the response to ensure it uses <br> and removes unwanted characters
-    #         # Remove all newlines and replace with <br>
-    #         ai_response = ai_response.replace('\n', '')
-    #         # Remove any instances of ** from the response
-    #         ai_response = ai_response.replace('**', '')
-
-    #         # Clean all marks
-    #         propose_ai_content = self.cleanMarkAiContent(ai_response)
-    #         # print("PROPOSE AI CONTENT = " + propose_ai_content)
-
-    #         # Updating content to cleaned HTML MARKUP
-    #         existing_suggestion.content = propose_ai_content
-    #         # print("existing_suggestion.content",existing_suggestion.content)
-
-    #         # existing_suggestion.content = None
-    #         if not existing_suggestion.old_content:
-    #             existing_suggestion.old_content = lesson_content_text
-
-    #         # print("old content CreateContent",existing_suggestion.old_content)
-
-    #         existing_suggestion.save()
-
-    #          # Add the proposed AI response to the response data1
-    #         response_data = {
-    #             'suggestion': SuggestionSerializer(existing_suggestion).data,
-    #             'ai_response': ai_response
-    #         }
-
-    #         # Return the response with the created or updated status
-    #         if IsCreated:
-    #             # return Response(response_data, status=status.HTTP_201_CREATED)
-    #             response = Response(response_data, status=status.HTTP_201_CREATED)
-    #             response["Access-Control-Allow-Origin"] = "*"
-    #             return response
-
-    #         # return Response(response_data, status=status.HTTP_200_OK)
-    #         response = Response(response_data, status=status.HTTP_201_CREATED)
-    #         response["Access-Control-Allow-Origin"] = "*"
-    #         return response
-
-    #         # if IsCreated:
-    #         #     return Response(SuggestionSerializer(existing_suggestion).data, status=status.HTTP_201_CREATED)
-            
-    #         # return Response(SuggestionSerializer(existing_suggestion).data, status=status.HTTP_200_OK)
-
-    #     except Exception as e:
-    #         # return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    #         response = Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    #         response["Access-Control-Allow-Origin"] = "*"
-    #         return response
 
     def updateContent(self, request):
         lesson_id = request.data.get('lesson_id')
@@ -472,6 +446,7 @@ class SuggestionController(ModelViewSet):
         except Exception as e:
             print(f"Error: {str(e)}")
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
 
     def getOldContent(self, request, lesson_id):
         # lesson_id = request.data.get('lesson_id')
@@ -516,36 +491,4 @@ class SuggestionController(ModelViewSet):
             return Response({"message": "Suggestion deleted successfully"}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-
-    # helper
-    @staticmethod
-    def cleanMarkAiContent(ai_response):
-        """
-        This function cleans AI-generated content by performing the following actions:
-        1. Removes content wrapped in <mark> tags with 'lightcoral' background.
-        2. Removes only <mark> tags while retaining the content for yellow marks.
-        3. Removes any newline characters, '**', and '```html' from the content.
-        """
-
-        # 1. Remove <mark> tags with 'lightcoral' background and their content
-        # This will handle any variations in spaces within the tag
-        cleaned_content = re.sub(
-            r'<mark\s+style\s*=\s*"background-color\s*:\s*lightcoral\s*;">.*?</mark>', 
-            '', ai_response, flags=re.DOTALL | re.IGNORECASE
-        )
-        
-        # 2. Remove <mark> and </mark> tags but retain the content inside them (for yellow marks)
-        cleaned_content = re.sub(r'</?mark(?:\s+[^>]+)?>', '', cleaned_content, flags=re.IGNORECASE)
-        
-        # 3. Replace newline characters with ''
-        cleaned_content = cleaned_content.replace('\n', '')
-        
-        # 4. Remove any instances of '**'
-        cleaned_content = cleaned_content.replace('**', '')
-        
-        # 5. Remove any instances of '```html'
-        cleaned_content = cleaned_content.replace('```html', '')
-
-        return cleaned_content
         
