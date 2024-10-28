@@ -397,19 +397,20 @@ class SuggestionController(ModelViewSet):
     # Revert content logic
     def updateRevertContent(self, request):
         lesson_id = request.data.get('lesson_id')
+        old_content = request.data.get('old_content')
         # print("lesson id = ", lesson_id)
         if not lesson_id:
             return Response({"error": "lesson_id is required"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             # Fetch the Suggestion content based on the lesson_id
-            suggestion = Suggestion.objects.filter(lesson_id=lesson_id).first()
-            if not suggestion:
-                return Response({"error": "No suggestion found for the given lesson_id"}, status=status.HTTP_404_NOT_FOUND)
+            # suggestion = Suggestion.objects.filter(lesson_id=lesson_id).first()
+            # if not suggestion:
+            #     return Response({"error": "No suggestion found for the given lesson_id"}, status=status.HTTP_404_NOT_FOUND)
 
-            old_content = suggestion.old_content
-            if not old_content:
-                return Response({"error": "No old content found in the suggestion"}, status=status.HTTP_404_NOT_FOUND)
+            # old_content = suggestion.old_content
+            # if not old_content:
+            #     return Response({"error": "No old content found in the suggestion"}, status=status.HTTP_404_NOT_FOUND)
             
             # Split the old_content using the delimiter
             result = LessonContentsController.split_content_by_delimiter(old_content, isRevert=True)
