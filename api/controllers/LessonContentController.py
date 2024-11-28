@@ -96,24 +96,25 @@ class LessonContentsController(GenericViewSet, ListModelMixin, RetrieveModelMixi
     # helper
     # returns tuple : [0] - lenOfPages [1] - arr of contents
     @staticmethod
-    def split_content_by_delimiter(content: str, isRevert: bool = False):
-        # Define the delimiter pattern
-        delimiter_pattern = r"<!-- delimiter -->"
-        
-        # Split the content by delimiter
+    def split_content_by_delimiter(content: str):
+        # Define patterns for punctuation and HTML end tags
+        punctuation_pattern = r"[.!?]"
+        html_end_tags_pattern = r"</(?:div|p|h[1-6]|ol|li|article|section|b|i|small|sub|sup|span|strong|code)>"
+
+        # Create a regex that matches punctuation followed by whitespace or HTML end tags
+        delimiter_pattern = rf"(?<=[{punctuation_pattern}])\s+|(?={html_end_tags_pattern})"
+
+        # Split the content by this combined pattern
         page_contents = re.split(delimiter_pattern, content)
-        
+
+        # Clean up: Remove any empty parts that might have resulted from the split
+        page_contents = [part.strip() for part in page_contents if part.strip()]
+
         # Add the delimiter back to the non-final parts
         page_contents = [part + "<!-- delimiter -->" for part in page_contents[:-1]] + [page_contents[-1]]
-        
-        # Check if it's a revert action, remove the last page if it's empty
-        if isRevert and page_contents[-1].strip() == '':
-            page_contents.pop()  # Remove the last empty page
 
-        # Count the number of pages
-        num_pages = len(page_contents)
-
-        return num_pages, page_contents
+        # Return the number of pages and the contents
+        return len(page_contents), page_contents
 
     
     @staticmethod

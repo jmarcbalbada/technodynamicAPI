@@ -139,13 +139,13 @@ class SuggestionController(ModelViewSet):
 
     
 
-    def createContent(self, request):
+    def createContent(self, request):   
         lesson_id = request.data.get('lesson_id')
         notification_id = request.data.get('notification_id')
 
         if not lesson_id or not notification_id:
             response = Response({"error": "lesson_id or notification_id is required"}, status=status.HTTP_400_BAD_REQUEST)
-            response["Access-Control-Allow-Origin"] = "https://technodynamic.vercel.app"
+            # response["Access-Control-Allow-Origin"] = "https://technodynamic.vercel.app"
             return response
 
         # Guard: Check if lesson and notification exist
@@ -154,7 +154,7 @@ class SuggestionController(ModelViewSet):
 
         if not existing_lesson or not existing_notification:
             response = Response({"error": "Lesson or Notification does not exist."}, status=status.HTTP_400_BAD_REQUEST)
-            response["Access-Control-Allow-Origin"] = "https://technodynamic.vercel.app"
+            # response["Access-Control-Allow-Origin"] = "https://technodynamic.vercel.app"
             return response
 
         # Check if suggestions exist for the lesson
@@ -378,39 +378,41 @@ class SuggestionController(ModelViewSet):
             page_contents = result[1]
             # print("Page contents = ", page_contents)
 
-            # Get All Previous Lesson Contents
-            prev_contents = LessonContent.objects.filter(lesson_id=lesson_id).order_by('id')
-            prev_contents_list = list(prev_contents)
+            # 356 -end
 
-            # print("length")
-            # print("page_contents length = ", len(page_contents))
-            # print("prev_contents_list length = ", len(prev_contents_list))
+            # # Get All Previous Lesson Contents
+            # prev_contents = LessonContent.objects.filter(lesson_id=lesson_id).order_by('id')
+            # prev_contents_list = list(prev_contents)
 
-            # Update existing pages first
-            for index, content in enumerate(page_contents[:len(prev_contents_list)]):
-                lesson_content = prev_contents_list[index]
-                lesson_content.contents = content.strip()  # Assign content of the page
-                lesson_content.save()
-                print(f"Updated LessonContent page {index + 1}: {content}")
+            # # print("length")
+            # # print("page_contents length = ", len(page_contents))
+            # # print("prev_contents_list length = ", len(prev_contents_list))
 
-            # If new content has more pages than the existing ones, create new LessonContent for the extra pages
-            if len(page_contents) > len(prev_contents_list):
-                for new_index in range(len(prev_contents_list), len(page_contents)):
-                    new_content = page_contents[new_index]
-                    if new_content.strip():  # Only create new page if content is not empty
-                        new_lesson_content = LessonContent(
-                            lesson_id=lesson_id,
-                            contents=new_content.strip()
-                        )
-                        new_lesson_content.save()
-                        print(f"Created new LessonContent page {new_index + 1}: {new_content}")
+            # # Update existing pages first
+            # for index, content in enumerate(page_contents[:len(prev_contents_list)]):
+            #     lesson_content = prev_contents_list[index]
+            #     lesson_content.contents = content.strip()  # Assign content of the page
+            #     lesson_content.save()
+            #     print(f"Updated LessonContent page {index + 1}: {content}")
 
-            # Delete the LessonContent entries where the contents are just the delimiter (empty pages)
-            LessonContent.objects.filter(lesson_id=lesson_id, contents="<!-- delimiter -->").delete()
-            print(f"Deleted blank pages with content only as <!-- delimiter -->")
+            # # If new content has more pages than the existing ones, create new LessonContent for the extra pages
+            # if len(page_contents) > len(prev_contents_list):
+            #     for new_index in range(len(prev_contents_list), len(page_contents)):
+            #         new_content = page_contents[new_index]
+            #         if new_content.strip():  # Only create new page if content is not empty
+            #             new_lesson_content = LessonContent(
+            #                 lesson_id=lesson_id,
+            #                 contents=new_content.strip()
+            #             )
+            #             new_lesson_content.save()
+            #             print(f"Created new LessonContent page {new_index + 1}: {new_content}")
 
-            # If new content has fewer pages, just update existing pages (no deletion allowed)
-            return Response({"message": "Content updated successfully"}, status=status.HTTP_200_OK)
+            # # Delete the LessonContent entries where the contents are just the delimiter (empty pages)
+            # LessonContent.objects.filter(lesson_id=lesson_id, contents="<!-- delimiter -->").delete()
+            # print(f"Deleted blank pages with content only as <!-- delimiter -->")
+
+            # # If new content has fewer pages, just update existing pages (no deletion allowed)
+            # return Response({"message": "Content updated successfully", "result": page_contents}, status=status.HTTP_200_OK)
 
         except Lesson.DoesNotExist:
             return Response({"error": "Lesson not found"}, status=status.HTTP_404_NOT_FOUND)
