@@ -226,7 +226,10 @@ urlpatterns = [
     path('suggestions/insights/', SuggestionController.as_view(suggestion_insight_actions)),
     path('suggestions/contents/', SuggestionController.as_view(suggestion_content_actions)),
     path('suggestions/contents/startWorker/', SuggestionController.as_view(suggestion_startWorkerContent_actions)),
-    
+
+    # insert delimiter ai
+    path('suggestions/insert_delimiter_ai/', SuggestionController.as_view({'post':'insert_delimiter_ai'})),
+
     # Get suggestions by lesson ID
     path('lessons/<int:lesson_id>/suggestions/', SuggestionController.as_view({'get': 'list'})),
 
