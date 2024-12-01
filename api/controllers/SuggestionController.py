@@ -1,3 +1,4 @@
+import json
 import re
 from datetime import datetime
 import traceback
@@ -41,7 +42,81 @@ class SuggestionController(ModelViewSet):
     authentication_classes = [SessionAuthentication, TokenAuthentication]
 
     isRunning = False  # Class-level variable to track background process status
-    
+
+    def insert_delimiter_ai(self, request):
+        edited_content = request.data.get('edited_content')
+        original_content = request.data.get('original_content')
+        print('edited_content', edited_content)
+        print('original', original_content)
+        if not edited_content or not original_content:
+            return Response({
+                "success":False,
+                "message":"original and edited content are required",
+                "data":""
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # process the contents using ai
+            # make a pormpt
+        prompt = '''
+                 **INSTRUCTIONS FOR HANDLING `<!-- delimiter -->` TAGS**
+                    1. **KEEP EXISTING DELIMITERS**  
+                    - DO NOT REMOVE ANY EXISTING `<!-- delimiter -->` TAGS IN THE ORIGINAL CONTENT.
+                    2. THE DELIMITER SHOULD ONLY BASE ON THE ORIGINAL CONTENT.
+                    3. **MAINTAIN LOGICAL FLOW**  
+                    - CONTENT SHOULD FOLLOW A NATURAL SEQUENCE, WITH EACH SECTION COMPLETE AND COHESIVE.  
+                    - ENSURE THAT THE FINAL SECTION CONCLUDES THE CONTENT—AVOID INTRODUCING NEW TOPICS AFTER THE CONCLUSION.  
+                    - AVOID CONTENT REPETITION ACROSS PAGES TO MAINTAIN BREVITY AND REDUCE REDUNDANCY.
+                    4. **FINAL CHECK FOR COMPLETENESS**  
+                    - EACH SECTION SHOULD DISPLAY COMPLETE INFORMATION, WITHOUT PARTIAL OR DISJOINTED CONTENT.
+
+                    NOTE: IF THERE IS A YOUTUBE LINK VIDEO FROM ORIGINAL LESSON CONTENT YOU MUST RETAIN IT AND PUT 1 <br> below it  .
+                    
+                    
+                    DONT NOTT EDIT THE 
+                  
+                  'DONT MAKE ANY COMMENT JUST REPLY WITH HTML MARKUP , DONT REPLY HTML DOCUMENT'
+                  'BASE ON THIS INFORMATION BELOW I WANTED YOU TO PUT DELIMITER ON THE edited content, '
+                  'BELOW IS THE ORIGINAL CONTENT:
+                  
+                  '''
+
+        prompt2 = '''. INSTRUCTION :I WANTED YOU TO PUT DELIMETER BASE ON THE ORIGIN CONTENT'
+        
+                    IMPORTANT NOTICE: MAKE SURE TO DONT  CHANGE ANY OF THE CONTENT HERE but you can only add the delimiter!!! 
+                    IMPORTANT NOTICE: MAKE SURE TO DONT  CHANGE ANY OF THE CONTENT HERE but you can only add the delimiter!!! 
+                    IMPORTANT NOTICE: MAKE SURE TO DONT  CHANGE ANY OF THE CONTENT HERE but you can only add the delimiter!!! 
+                 **INSTRUCTIONS FOR HANDLING `<!-- delimiter -->` TAGS**
+                 **INSTRUCTIONS FOR HANDLING `<!-- delimiter -->` TAGS**
+
+                    
+                    VERY IMPORTANT NOTE TO FOLLOW I WILL DIE IF YOU DONT FOLLOW THE WORLD WILL BE BROKEN DO NOT EDIT THE edited content 
+                    VERY IMPORTANT NOTE TO FOLLOW I WILL DIE IF YOU DONT FOLLOW THE WORLD WILL BE BROKEN DO NOT EDIT THE edited content 
+
+                   
+                   'DONT MAKE ANY COMMENT JUST REPLY WITH HTML MARKUP, Below is the edited content : '''
+
+
+        insert_delimiter_ai= 'I will be giving you text in html form and make sure that you will return html form content, make sure to only reply html'
+        final_prompt = prompt + original_content + prompt2 + edited_content;
+        openai.api_key = os.environ.get("OPENAI_API_KEY")
+        response = openai.ChatCompletion.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": insert_delimiter_ai},
+                {"role": "user", "content": final_prompt}
+            ],
+            temperature=0.7,
+        )
+        ai_response = response['choices'][0]['message']['content'].strip()
+        return Response({
+            "success": True,
+            "message": "successfully proccessed dat",
+            "data": ai_response
+        }, status=status.HTTP_200_OK)
+
+
+        # Update the existing suggestion with the new insights and old content
+
     def createInsight(self, request):
         lesson_id = request.data.get('lesson_id')
         notification_id = request.data.get('notification_id')
