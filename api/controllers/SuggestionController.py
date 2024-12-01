@@ -60,14 +60,10 @@ class SuggestionController(ModelViewSet):
         prompt = '''
                  **INSTRUCTIONS FOR HANDLING `<!-- delimiter -->` TAGS**
                     1. **KEEP EXISTING DELIMITERS**  
-                    - DO NOT REMOVE ANY EXISTING `<!-- delimiter -->` TAGS IN THE ORIGINAL CONTENT.
+                    - DO NOT REMOVE ANY EXISTING `<!-- delimiter -->` 
                     2. THE DELIMITER SHOULD ONLY BASE ON THE ORIGINAL CONTENT.
-                    3. **MAINTAIN LOGICAL FLOW**  
-                    - CONTENT SHOULD FOLLOW A NATURAL SEQUENCE, WITH EACH SECTION COMPLETE AND COHESIVE.  
-                    - ENSURE THAT THE FINAL SECTION CONCLUDES THE CONTENT—AVOID INTRODUCING NEW TOPICS AFTER THE CONCLUSION.  
-                    - AVOID CONTENT REPETITION ACROSS PAGES TO MAINTAIN BREVITY AND REDUCE REDUNDANCY.
-                    4. **FINAL CHECK FOR COMPLETENESS**  
-                    - EACH SECTION SHOULD DISPLAY COMPLETE INFORMATION, WITHOUT PARTIAL OR DISJOINTED CONTENT.
+                    - I WILL BE USING THE DELIMITERS TO SEPERATE THE TEXT IT WILL BE TURNED INTO AN ARRAY SO MAKE SURE TO FOLLOW THE DELIMITER BASE ON THE ORIGINAL CONTENT
+                    - DONT INCLUDE EVERYTHING IN THE FIRST PAGE FOLLOW THE DELIMITER BASE ON THE ORIGINAL CONTENT
 
                     NOTE: IF THERE IS A YOUTUBE LINK VIDEO FROM ORIGINAL LESSON CONTENT YOU MUST RETAIN IT AND PUT 1 <br> below it  .
                     
@@ -83,18 +79,22 @@ class SuggestionController(ModelViewSet):
         prompt2 = '''. INSTRUCTION :I WANTED YOU TO PUT DELIMETER BASE ON THE ORIGIN CONTENT'
         
                     IMPORTANT NOTICE: MAKE SURE TO DONT  CHANGE ANY OF THE CONTENT HERE but you can only add the delimiter!!! 
-                    IMPORTANT NOTICE: MAKE SURE TO DONT  CHANGE ANY OF THE CONTENT HERE but you can only add the delimiter!!! 
-                    IMPORTANT NOTICE: MAKE SURE TO DONT  CHANGE ANY OF THE CONTENT HERE but you can only add the delimiter!!! 
-                 **INSTRUCTIONS FOR HANDLING `<!-- delimiter -->` TAGS**
-                 **INSTRUCTIONS FOR HANDLING `<!-- delimiter -->` TAGS**
+                     **INSTRUCTIONS FOR HANDLING `<!-- delimiter -->` TAGS**
+
+                    - DONT INCLUDE EVERYTHING IN THE FIRST PAGE FOLLOW THE DELIMITER BASE ON THE ORIGINAL CONTENT
 
                     
-                    VERY IMPORTANT NOTE TO FOLLOW I WILL DIE IF YOU DONT FOLLOW THE WORLD WILL BE BROKEN DO NOT EDIT THE edited content 
                     VERY IMPORTANT NOTE TO FOLLOW I WILL DIE IF YOU DONT FOLLOW THE WORLD WILL BE BROKEN DO NOT EDIT THE edited content 
 
                    
                    'DONT MAKE ANY COMMENT JUST REPLY WITH HTML MARKUP, Below is the edited content : '''
+        prompt3 = '''
+                        IMPORTANT NOTICE: MAKE SURE TO DONT  CHANGE ANY OF THE CONTENT HERE but you can only add the delimiter!!! 
+                        I WANTED TO MAKE SURE THAT EVERYTHING IS FOLLOWING ITS DELIMITER DONT PUT THE WHOLE TEXT IN ONE PAGE,
+                     **INSTRUCTIONS FOR HANDLING `<!-- delimiter -->` TAGS**
 
+        
+                    '''
 
         insert_delimiter_ai= 'I will be giving you text in html form and make sure that you will return html form content, make sure to only reply html'
         final_prompt = prompt + original_content + prompt2 + edited_content;
