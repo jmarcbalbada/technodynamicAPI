@@ -89,10 +89,24 @@ class SuggestionController(ModelViewSet):
                    
                    'DONT MAKE ANY COMMENT JUST REPLY WITH HTML MARKUP, Below is the edited content : '''
         prompt3 = '''
-                        IMPORTANT NOTICE: MAKE SURE TO DONT  CHANGE ANY OF THE CONTENT HERE but you can only add the delimiter!!! 
-                        I WANTED TO MAKE SURE THAT EVERYTHING IS FOLLOWING ITS DELIMITER DONT PUT THE WHOLE TEXT IN ONE PAGE,
-                     **INSTRUCTIONS FOR HANDLING `<!-- delimiter -->` TAGS**
 
+                1. **DELIMITER HANDLING:**  
+                   - DO NOT REMOVE or REPLACE the delimiter `<!-- delimiter -->`.  
+                   - ONLY SPLIT the content based on the exact occurrence of this delimiter.  
+                   - DO NOT MERGE CONTENT from different sections into one.
+
+                2. **OUTPUT REQUIREMENTS:**  
+                   - The output must ONLY include HTML content with delimiters retained.  
+                   - DO NOT ADD, MODIFY, or DELETE any part of the original content except for splitting by the delimiter.  
+
+                3. **RULES FOR HANDLING CONTENT WITH LINKS:**  
+                   - If a YouTube video link appears, RETAIN the link and add a `<br>` tag directly below it.
+
+                4. **FORMAT:**  
+                   - Reply ONLY in HTML without any comments or explanations.  
+                   - DO NOT include the full document in one output; SPLIT based strictly on the delimiter.
+
+                FAILURE TO FOLLOW THESE INSTRUCTIONS WILL BREAK THE PROCESS.
         
                     '''
 
