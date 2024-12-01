@@ -97,7 +97,7 @@ class SuggestionController(ModelViewSet):
                     '''
 
         insert_delimiter_ai= 'I will be giving you text in html form and make sure that you will return html form content, make sure to only reply html'
-        final_prompt = prompt + original_content + prompt2 + edited_content;
+        final_prompt = prompt + original_content + prompt2 + edited_content + prompt3;
         openai.api_key = os.environ.get("OPENAI_API_KEY")
         response = openai.ChatCompletion.create(
             model="gpt-4o",
