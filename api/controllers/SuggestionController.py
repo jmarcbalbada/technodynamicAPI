@@ -43,93 +43,159 @@ class SuggestionController(ModelViewSet):
 
     isRunning = False  # Class-level variable to track background process status
 
+
     def insert_delimiter_ai(self, request):
         edited_content = request.data.get('edited_content')
         original_content = request.data.get('original_content')
-        print('edited_content', edited_content)
-        print('original', original_content)
+        lesson_id = request.data.get('lesson_id')
+        notification_id = request.data.get('notification_id')
+
         if not edited_content or not original_content:
             return Response({
-                "success":False,
-                "message":"original and edited content are required",
-                "data":""
+                "success": False,
+                "message": "Original and edited content are required",
+                "data": ""
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        # process the contents using ai
-            # make a pormpt
-        prompt = '''
-                 **INSTRUCTIONS FOR HANDLING `<!-- delimiter -->` TAGS**
-                    1. **KEEP EXISTING DELIMITERS**  
-                    - DO NOT REMOVE ANY EXISTING `<!-- delimiter -->` 
-                    2. THE DELIMITER SHOULD ONLY BASE ON THE ORIGINAL CONTENT.
-                    - I WILL BE USING THE DELIMITERS TO SEPERATE THE TEXT IT WILL BE TURNED INTO AN ARRAY SO MAKE SURE TO FOLLOW THE DELIMITER BASE ON THE ORIGINAL CONTENT
-                    - DONT INCLUDE EVERYTHING IN THE FIRST PAGE FOLLOW THE DELIMITER BASE ON THE ORIGINAL CONTENT
+        def process_delimiter_task(edited_content, original_content):
+        #     # AI prompt preparation
+        #     prompt = '''
+        #         I wanted you to put delimiter to the edited content base on the original content
+        #         **INSTRUCTIONS FOR HANDLING `<!-- delimiter -->` TAGS**
+        #         1. **KEEP EXISTING DELIMITERS**
+        #         - DO NOT REMOVE ANY EXISTING `<!-- delimiter -->`
+        #         2. THE DELIMITER SHOULD ONLY BASE ON THE ORIGINAL CONTENT.
+        #         - I WILL BE USING THE DELIMITERS TO SEPARATE THE TEXT IT WILL BE TURNED INTO AN ARRAY SO MAKE SURE TO FOLLOW THE DELIMITER BASED ON THE ORIGINAL CONTENT
+        #         - DON'T INCLUDE EVERYTHING IN THE FIRST PAGE FOLLOW THE DELIMITER BASED ON THE ORIGINAL CONTENT
+        #         - IMPORTANT RETAIN ALL THE FILE ASSETS AND VIDEOS AND IMAGES< PICTURE LINKS
+        #         - **VERY IMPORTANT FOLLOW ALL THE INSTRUCTIONS I WILL DIE IF YOU REPLACE THE EDITED CONTENT I AM ONLY ASKING OF ADDING DELIMITER**
+        #         - PLEASE DONT REMOVE ANYTHING I WILL BE DISSAPOINTED
+        #         - PLEASE DONT REMOVE ANYTHING I WILL BE DISSAPOINTED
+        #
+        #         NOTE: IF THERE IS A YOUTUBE LINK VIDEO FROM EDITED CONTENT YOU MUST RETAIN IT AND PUT 1 <br> BELOW IT.
+        #         This is the original content """
+        #     '''
+        #     prompt2 = '''
+        #     """
+        #         INSTRUCTION: I WANTED YOU TO PUT DELIMITER BASED ON THE ORIGINAL CONTENT
+        #
+        #         IMPORTANT NOTICE: MAKE SURE TO NOT CHANGE ANY OF THE CONTENT HERE BUT YOU CAN ONLY ADD THE DELIMITER!!!
+        #         VERY IMPORTANT NOTE: DO NOT EDIT THE EDITED CONTENT
+        #         - IMPORTANT RETAIN ALL THE FILE ASSETS AND VIDEOS AND IMAGES< PICTURE LINKS
+        #         - **VERY IMPORTANT FOLLOW ALL THE INSTRUCTIONS I WILL DIE IF YOU REPLACE THE EDITED CONTENT I AM ONLY ASKING OF ADDING DELIMITER**
+        #
+        #         DON'T MAKE ANY COMMENT JUST REPLY WITH HTML MARKUP, BELOW IS THE EDITED CONTENT:
+        #     '''
+        #     prompt3 = '''
+        #         1. **DELIMITER HANDLING:**
+        #         - DO NOT REMOVE or REPLACE the delimiter `<!-- delimiter -->`.
+        #         - ONLY SPLIT the content based on the exact occurrence of this delimiter.
+        #         - IMPORTANT RETAIN ALL THE FILE ASSETS AND VIDEOS AND IMAGES< PICTURE LINKS
+        #
+        #         - IMPORTANT RETAIN ALL THE FILE ASSETS AND VIDEOS AND IMAGES< PICTURE LINKS
+        #         - **VERY IMPORTANT FOLLOW ALL THE INSTRUCTIONS I WILL DIE IF YOU REPLACE THE EDITED CONTENT I AM ONLY ASKING OF ADDING DELIMITER**
+        #
+        #         - **FAILURE TO FOLLOW THESE INSTRUCTIONS WILL BREAK THE PROCESS.**
+        #     '''
+        #     insert_delimiter_ai = 'I will be giving you text in html form and make sure that you will return html form content, make sure to only reply html'
+        # #     final_prompt = prompt + original_content + prompt2 + edited_content + prompt3
+        #     prompt = '''
+        #             I need you to add delimiters to the edited content based on the original content.
+        #
+        #             **Instructions for Handling `<!-- delimiter -->` Tags**:
+        #             1. **Do not remove existing delimiters** (`<!-- delimiter -->`).
+        #             2. **Delimiters must match the original content structure**:
+        #                 - Use delimiters to separate the text into sections as per the original content.
+        #                 - Retain all assets, videos, images, and links.
+        #             3. **Do not edit or remove any part of the edited content**:
+        #                 - This includes file assets, YouTube links, or images.
+        #                 - Add only delimiters where necessary.
+        #             4. **YouTube links must be followed by a `<br>` tag**.
+        #             5. **your only job is to put delimiter in the edited content and you should try to match where the delimiter of the original content is placced .
+        #
+        #             Note: Reply with the updated HTML content containing only the added delimiters.
+        #         '''
+        #
+        #     final_prompt = f"{prompt}\n\nOriginal Content:\n{original_content}\n\nEdited Content:\n{edited_content}"
+        #
+        #     # OpenAI API call
+        #     openai.api_key = os.environ.get("OPENAI_API_KEY")
+        #     response = openai.ChatCompletion.create(
+        #         model="gpt-4",
+        #         messages=[
+        #             {"role": "system", "content": insert_delimiter_ai},
+        #             {"role": "user", "content": final_prompt},
+        #         ],
+        #         temperature=0.7,
+        #     )
+        #     ai_response = response['choices'][0]['message']['content'].strip()
 
-                    NOTE: IF THERE IS A YOUTUBE LINK VIDEO FROM ORIGINAL LESSON CONTENT YOU MUST RETAIN IT AND PUT 1 <br> below it  .
-                    
-                    
-                    DONT NOTT EDIT THE 
-                  
-                  'DONT MAKE ANY COMMENT JUST REPLY WITH HTML MARKUP , DONT REPLY HTML DOCUMENT'
-                  'BASE ON THIS INFORMATION BELOW I WANTED YOU TO PUT DELIMITER ON THE edited content, '
-                  'BELOW IS THE ORIGINAL CONTENT:
-                  
-                  '''
+            insert_delimiter_ai = "I WILL PROVIDE YOU TEXT IN HTML FORMAT, AND YOU MUST RETURN HTML FORMAT CONTENT. ONLY REPLY WITH HTML."
 
-        prompt2 = '''. INSTRUCTION :I WANTED YOU TO PUT DELIMETER BASE ON THE ORIGIN CONTENT'
-        
-                    IMPORTANT NOTICE: MAKE SURE TO DONT  CHANGE ANY OF THE CONTENT HERE but you can only add the delimiter!!! 
-                     **INSTRUCTIONS FOR HANDLING `<!-- delimiter -->` TAGS**
+            prompt = '''
+                I NEED YOU TO ADD DELIMITERS TO THE EDITED CONTENT BASED ON THE ORIGINAL CONTENT.
 
-                    - DONT INCLUDE EVERYTHING IN THE FIRST PAGE FOLLOW THE DELIMITER BASE ON THE ORIGINAL CONTENT
+                **INSTRUCTIONS FOR HANDLING `<!-- delimiter -->` TAGS**:
+                1. **DO NOT REMOVE EXISTING DELIMITERS** (`<!-- delimiter -->`).
+                2. **DELIMITERS MUST MATCH THE ORIGINAL CONTENT STRUCTURE**:
+                    - USE DELIMITERS TO SEPARATE THE TEXT INTO SECTIONS AS PER THE ORIGINAL CONTENT.
+                    - RETAIN ALL FILE ASSETS, VIDEOS, IMAGES, AND LINKS EXACTLY AS THEY ARE.
+                3. **DO NOT EDIT OR REMOVE ANY PART OF THE EDITED CONTENT**:
+                    - THIS INCLUDES FILE ASSETS, YOUTUBE LINKS, OR IMAGES.
+                    - ADD ONLY DELIMITERS WHERE NECESSARY.
+                4. **ENSURE YOUTUBE LINKS ARE FOLLOWED BY A `<br>` TAG**.
+                5. **YOUR ONLY JOB IS TO PLACE DELIMITERS IN THE EDITED CONTENT AND ALIGN THEM WITH THE ORIGINAL CONTENT'S STRUCTURE.**
 
-                    
-                    VERY IMPORTANT NOTE TO FOLLOW I WILL DIE IF YOU DONT FOLLOW THE WORLD WILL BE BROKEN DO NOT EDIT THE edited content 
+                **NOTE**: REPLY ONLY WITH THE UPDATED HTML CONTENT CONTAINING THE DELIMITERS. DO NOT PROVIDE ANY COMMENTS OR EXPLANATIONS.
+            '''
 
-                   
-                   'DONT MAKE ANY COMMENT JUST REPLY WITH HTML MARKUP, Below is the edited content : '''
-        prompt3 = '''
+            final_prompt = f"{prompt}\n\nORIGINAL CONTENT:\n{original_content}\n\nEDITED CONTENT:\n{edited_content}"
 
-                1. **DELIMITER HANDLING:**  
-                   - DO NOT REMOVE or REPLACE the delimiter `<!-- delimiter -->`.  
-                   - ONLY SPLIT the content based on the exact occurrence of this delimiter.  
-                   - DO NOT MERGE CONTENT from different sections into one.
+            # OpenAI API call
+            openai.api_key = os.environ.get("OPENAI_API_KEY")
+            response = openai.ChatCompletion.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": insert_delimiter_ai},
+                    {"role": "user", "content": final_prompt},
+                ],
+                temperature=0.2,
+            )
+            ai_response = response['choices'][0]['message']['content'].strip()
 
-                2. **OUTPUT REQUIREMENTS:**  
-                   - The output must ONLY include HTML content with delimiters retained.  
-                   - DO NOT ADD, MODIFY, or DELETE any part of the original content except for splitting by the delimiter.  
+            # save the response in the suggestion model ai_delimiter
+            # You can save `ai_response` to a database or log it
+            print("AI Response:", ai_response)
 
-                3. **RULES FOR HANDLING CONTENT WITH LINKS:**  
-                   - If a YouTube video link appears, RETAIN the link and add a `<br>` tag directly below it.
+            suggestion = Suggestion.objects.filter(lesson_id=lesson_id, notification_id=notification_id).first()
+            if suggestion:
+                suggestion.ai_delimiter = ai_response
+                suggestion.save()
 
-                4. **FORMAT:**  
-                   - Reply ONLY in HTML without any comments or explanations.  
-                   - DO NOT include the full document in one output; SPLIT based strictly on the delimiter.
+        # Start the task in a new thread
+        thread = threading.Thread(target=process_delimiter_task, args=(edited_content, original_content))
+        thread.start()
 
-                FAILURE TO FOLLOW THESE INSTRUCTIONS WILL BREAK THE PROCESS.
-        
-                    '''
-
-        insert_delimiter_ai= 'I will be giving you text in html form and make sure that you will return html form content, make sure to only reply html'
-        final_prompt = prompt + original_content + prompt2 + edited_content + prompt3;
-        openai.api_key = os.environ.get("OPENAI_API_KEY")
-        response = openai.ChatCompletion.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": insert_delimiter_ai},
-                {"role": "user", "content": final_prompt}
-            ],
-            temperature=0.7,
-        )
-        ai_response = response['choices'][0]['message']['content'].strip()
         return Response({
             "success": True,
-            "message": "successfully proccessed dat",
-            "data": ai_response
+            "message": "Processing started. Results will be available later.",
+            "data": None
+        }, status=status.HTTP_202_ACCEPTED)
+
+    def get_insert_delimiter_ai(self, request):
+        lesson_id = request.data.get('lesson_id')
+        notification_id = request.data.get('notification_id')
+
+        suggestion = Suggestion.objects.filter(lesson=lesson_id, notification=notification_id).first()
+        if suggestion and suggestion.ai_delimiter:
+            return Response({
+                "success": True,
+                "data": suggestion.ai_delimiter
+            }, status=status.HTTP_200_OK)
+        return Response({
+            "success": False,
+            "data": None
         }, status=status.HTTP_200_OK)
-
-
-        # Update the existing suggestion with the new insights and old content
 
     def createInsight(self, request):
         lesson_id = request.data.get('lesson_id')
