@@ -133,20 +133,20 @@ class SuggestionController(ModelViewSet):
             insert_delimiter_ai = "I WILL PROVIDE YOU TEXT IN HTML FORMAT, AND YOU MUST RETURN HTML FORMAT CONTENT. ONLY REPLY WITH HTML."
 
             prompt = '''
-                I NEED YOU TO ADD DELIMITERS TO THE EDITED CONTENT BASED ON THE ORIGINAL CONTENT.
+                    I NEED YOU TO ADD DELIMITERS TO THE EDITED CONTENT BASED ON THE ORIGINAL CONTENT.
 
-                **INSTRUCTIONS FOR HANDLING `<!-- delimiter -->` TAGS**:
-                1. **DO NOT REMOVE EXISTING DELIMITERS** (`<!-- delimiter -->`).
-                2. **DELIMITERS MUST MATCH THE ORIGINAL CONTENT STRUCTURE**:
-                    - USE DELIMITERS TO SEPARATE THE TEXT INTO SECTIONS AS PER THE ORIGINAL CONTENT.
-                    - RETAIN ALL FILE ASSETS, VIDEOS, IMAGES, AND LINKS EXACTLY AS THEY ARE.
-                3. **DO NOT EDIT OR REMOVE ANY PART OF THE EDITED CONTENT**:
-                    - THIS INCLUDES FILE ASSETS, YOUTUBE LINKS, OR IMAGES.
-                    - ADD ONLY DELIMITERS WHERE NECESSARY.
-                4. **ENSURE YOUTUBE LINKS ARE FOLLOWED BY A `<br>` TAG**.
-                5. **YOUR ONLY JOB IS TO PLACE DELIMITERS IN THE EDITED CONTENT AND ALIGN THEM WITH THE ORIGINAL CONTENT'S STRUCTURE.**
+                    **INSTRUCTIONS FOR HANDLING `<!-- delimiter -->` TAGS**:
+                    1. **DO NOT REMOVE EXISTING DELIMITERS** (`<!-- delimiter -->`).
+                    2. **DELIMITERS MUST MATCH THE ORIGINAL CONTENT STRUCTURE**:
+                        - USE DELIMITERS TO SEPARATE THE TEXT INTO SECTIONS AS PER THE ORIGINAL CONTENT.
+                        - RETAIN ALL FILE ASSETS, VIDEOS, IMAGES, AND LINKS EXACTLY AS THEY ARE.
+                    3. **DO NOT EDIT OR REMOVE ANY PART OF THE EDITED CONTENT**:
+                        - THIS INCLUDES FILE ASSETS, YOUTUBE LINKS, OR IMAGES.
+                        - ADD ONLY DELIMITERS WHERE NECESSARY.
+                    4. **ENSURE YOUTUBE LINKS ARE FOLLOWED BY A `<br>` TAG**.
+                    5. **YOUR ONLY JOB IS TO PLACE DELIMITERS IN THE EDITED CONTENT AND ALIGN THEM WITH THE ORIGINAL CONTENT'S STRUCTURE.**
 
-                **NOTE**: REPLY ONLY WITH THE UPDATED HTML CONTENT CONTAINING THE DELIMITERS. DO NOT PROVIDE ANY COMMENTS OR EXPLANATIONS.
+                    **NOTE**: REPLY ONLY WITH THE UPDATED HTML CONTENT CONTAINING THE DELIMITERS. DO NOT PROVIDE ANY COMMENTS OR EXPLANATIONS.
             '''
 
             final_prompt = f"{prompt}\n\nORIGINAL CONTENT:\n{original_content}\n\nEDITED CONTENT:\n{edited_content}"
@@ -154,7 +154,7 @@ class SuggestionController(ModelViewSet):
             # OpenAI API call
             openai.api_key = os.environ.get("OPENAI_API_KEY")
             response = openai.ChatCompletion.create(
-                model="gpt-4",
+                model="gpt-4o",
                 messages=[
                     {"role": "system", "content": insert_delimiter_ai},
                     {"role": "user", "content": final_prompt},
